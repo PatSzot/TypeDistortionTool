@@ -221,7 +221,7 @@ export class ThreeRenderer {
       const yNorm = (blockY + li * lineH) / ch
       const phase = (0.5 + yNorm * 0.1763) * wp.frequency * Math.PI * 2
                   - wp.t * wp.speed * Math.PI * 2
-      const raw   = (Math.sin(phase) + 1) / 2
+      const raw   = (1 - Math.sin(phase)) / 2   // 1 at trough/flat, 0 at crest
       return raw * raw * (3 - 2 * raw) * 320   // up to 320 canvas px (160 CSS px) gap below this line
     })
 
