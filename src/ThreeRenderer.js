@@ -111,7 +111,7 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor }) {
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth = 90 }) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = canvas.width
@@ -133,8 +133,7 @@ export class ThreeRenderer {
     ctx.textBaseline  = 'alphabetic'
     ctx.textAlign     = 'left'
 
-    const pad    = 80 * scale
-    const maxW   = cw - pad * 2
+    const maxW   = cw * (textWidth / 100)
     const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
     const totalH = (lines.length - 1) * lineH + fSize
     const blockY = (ch - totalH) / 2

@@ -47,6 +47,7 @@ export default function App() {
   const [fontSize,  setFontSize]  = useState(56)
   const [leading,   setLeading]   = useState(1.0)
   const [tracking,  setTracking]  = useState(-1.12)
+  const [textWidth, setTextWidth] = useState(90)
   const [textColor, setTextColor] = useState('#f8fffa')
   const [bgColor,   setBgColor]   = useState('#000d05')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
@@ -81,8 +82,8 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
-    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, fontsReady])
+    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth })
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth, fontsReady])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -175,7 +176,8 @@ export default function App() {
           </div>
           <ParamSlider label="Size"    value={fontSize} min={12}  max={200} step={2}    onChange={setFontSize} />
           <ParamSlider label="Leading" value={leading}  min={0.5} max={2.0} step={0.01} onChange={setLeading}  />
-          <ParamSlider label="Tracking" value={tracking} min={-20} max={40} step={0.5}  onChange={setTracking} />
+          <ParamSlider label="Tracking"  value={tracking}  min={-20} max={40}  step={0.5}  onChange={setTracking}  />
+          <ParamSlider label="Width"     value={textWidth} min={20}  max={100} step={1} unit="%" onChange={setTextWidth} />
         </div>
 
         {/* Colors */}
