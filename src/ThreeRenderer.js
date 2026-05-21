@@ -174,7 +174,12 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
+  drawText(params) {
+    this._baseTextParams = params   // cache base values for updateDynamicText
+    this._renderText(params)
+  }
+
+  _renderText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false }) {
     if (arcMode) return this._drawTextTile({ phrase, fontFamily, fontSize, textColor })
 
     const canvas = this.textCanvas
@@ -205,23 +210,36 @@ export class ThreeRenderer {
 
     ctx.fillStyle = textColor
     this.charPositions = []
+    const wp = this._waveParams   // { speed, frequency, t } set by updateDynamicText
 
     lines.forEach((line, li) => {
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
       let   curX   = (cw - lineW) / 2
       const baseY  = blockY + li * lineH + fSize * 0.78
+      const yNorm  = (blockY + li * lineH) / ch
       const widths = chars.map(c => ctx.measureText(c).width)
 
       chars.forEach((char, ci) => {
-        // Store centre-ish position (canvas px) for Lottie export
+        // Per-character wave intensity — sample the wave phase at this character's
+        // canvas position so only characters near the crest are affected.
+        let extraTrk = 0
+        if (wp && wp.speed > 0) {
+          const xNorm    = curX / cw
+          const phase    = (xNorm + yNorm * 0.1763) * wp.frequency * Math.PI * 2
+                         - wp.t * wp.speed * Math.PI * 2
+          const raw      = (Math.sin(phase) + 1) / 2          // 0 = trough, 1 = crest
+          const eased    = raw * raw * (3 - 2 * raw)          // cubic Bezier smooth
+          extraTrk       = eased * 140                         // canvas px (= 70 CSS px at 2×)
+        }
+
         this.charPositions.push({
           char,
           x: curX + widths[ci] / 2,
           y: baseY - fSize * 0.35,
         })
         ctx.fillText(char, curX, baseY)
-        curX += widths[ci] + trkPx
+        curX += widths[ci] + trkPx + extraTrk
       })
     })
 
@@ -314,6 +332,18 @@ export class ThreeRenderer {
     this.uniforms.uSpeed.value      = speed
     this.uniforms.uFrequency.value  = frequency
     this.uniforms.uWarpAmount.value = warpAmount
+    this._waveParams = { speed, frequency, t: this._waveParams?.t ?? 0 }
+  }
+
+  // ── Per-character dynamic tracking ─────────────────────────────────────
+  // Called every animation frame. Redraws the text canvas with per-character
+  // tracking driven by the wave phase at each character's x position — only
+  // characters at the wave crest spread apart; the rest stay at their base spacing.
+  updateDynamicText(t) {
+    if (!this._baseTextParams || !this._waveParams) return
+    if (this._waveParams.speed <= 0) return
+    this._waveParams.t = t
+    this._renderText(this._baseTextParams)
   }
 
   // ── Loop / resize / export ─────────────────────────────────────────────
