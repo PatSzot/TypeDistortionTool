@@ -1,57 +1,57 @@
-// ── Private: record canvas to a WebM Blob ──────────────────────────────────
-function _recordWebM(canvas, durationMs, fps) {
-  return new Promise((resolve, reject) => {
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9' : 'video/webm'
-    const recorder = new MediaRecorder(
-      canvas.captureStream(fps),
-      { mimeType, videoBitsPerSecond: 8_000_000 }
-    )
-    const chunks = []
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-    recorder.onstop  = () => resolve(new Blob(chunks, { type: mimeType }))
-    recorder.onerror = reject
-    recorder.start()
-    setTimeout(() => recorder.stop(), durationMs)
+import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
+
+// ── MP4 export via WebCodecs VideoEncoder + mp4-muxer ──────────────────────
+// No WASM, no CDN — uses the browser's built-in hardware H.264 encoder.
+// tickFn(timeSeconds) must render the canvas at the given time.
+// Requires Chrome/Edge 94+. Falls back to a clear error on other browsers.
+export async function exportMP4(canvas, tickFn, duration = 3, fps = 30, onPhase) {
+  if (typeof VideoEncoder === 'undefined') {
+    alert('MP4 export requires Chrome or Edge 94+. Try a Chromium-based browser.')
+    return
+  }
+
+  onPhase?.('Encoding…')
+
+  const w = canvas.width
+  const h = canvas.height
+  const totalFrames = Math.round(duration * fps)
+
+  const target = new ArrayBufferTarget()
+  const muxer  = new Muxer({
+    target,
+    video: { codec: 'avc', width: w, height: h },
+    fastStart: 'in-memory',
   })
-}
 
-// ── Private: lazy-load ffmpeg.wasm (single-threaded, no COOP/COEP needed) ──
-// Vite's ?url suffix serves these as hashed static assets — no CDN required.
-import coreURL from '@ffmpeg/core/dist/umd/ffmpeg-core.js?url'
-import wasmURL from '@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error:  e => console.error('VideoEncoder:', e),
+  })
 
-let _ff = null
-async function _getFFmpeg() {
-  if (_ff?.loaded) return _ff
-  _ff = new FFmpeg()
-  await _ff.load({ coreURL, wasmURL })
-  return _ff
-}
+  encoder.configure({
+    codec:                 'avc1.4d0034',  // H.264 Main Profile Level 5.2
+    width:                 w,
+    height:                h,
+    bitrate:               12_000_000,
+    framerate:             fps,
+    hardwareAcceleration:  'prefer-hardware',
+  })
 
-// ── MP4 export: record → transcode via ffmpeg.wasm ─────────────────────────
-// onPhase(msg) is called with status strings so the UI can show progress.
-export async function exportMP4(canvas, durationMs = 3000, fps = 30, onPhase) {
-  onPhase?.('Recording…')
-  const webmBlob = await _recordWebM(canvas, durationMs, fps)
+  for (let f = 0; f < totalFrames; f++) {
+    tickFn(f / fps)
+    const frame = new VideoFrame(canvas, {
+      timestamp: Math.round((f / fps) * 1_000_000),  // microseconds
+    })
+    encoder.encode(frame, { keyFrame: f % fps === 0 })
+    frame.close()
+    // Yield every 5 frames so the browser stays responsive
+    if (f % 5 === 0) await new Promise(r => setTimeout(r, 0))
+  }
 
-  onPhase?.('Loading encoder…')
-  const ff = await _getFFmpeg()
+  await encoder.flush()
+  muxer.finalize()
 
-  onPhase?.('Encoding MP4…')
-  await ff.writeFile('in.webm', new Uint8Array(await webmBlob.arrayBuffer()))
-  await ff.exec([
-    '-i', 'in.webm',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18',
-    '-pix_fmt', 'yuv420p',   // required for broad player compatibility
-    'out.mp4',
-  ])
-  const mp4 = await ff.readFile('out.mp4')
-  _download(new Blob([mp4.buffer], { type: 'video/mp4' }), 'type-distortion.mp4', 'video/mp4')
-
-  await ff.deleteFile('in.webm')
-  await ff.deleteFile('out.mp4')
+  _download(new Blob([target.buffer], { type: 'video/mp4' }), 'type-distortion.mp4', 'video/mp4')
 }
 
 // ── Lottie JSON export ─────────────────────────────────────────────────────

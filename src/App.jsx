@@ -154,10 +154,12 @@ export default function App() {
   const handleExportMP4 = async () => {
     if (recording) return
     setRecording(true)
-    const wasPlaying = playing
-    if (!wasPlaying) { startRef.current = null; setPlaying(true) }
-    await exportMP4(rendRef.current.domElement, 3000, 30, setExportPhase)
-    if (!wasPlaying) setPlaying(false)
+    await exportMP4(
+      rendRef.current.domElement,
+      t => rendRef.current?.tick(t),
+      3, 30,
+      setExportPhase,
+    )
     setRecording(false)
     setExportPhase('')
   }
