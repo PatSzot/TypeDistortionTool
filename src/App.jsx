@@ -7,7 +7,7 @@ const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 10, speed: 0.15, frequency: 1.5, warpAmount: 10 }
+const DEFAULT_WAVE     = { height: 26, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0
@@ -54,7 +54,7 @@ export default function App() {
   const [effect,    setEffect]    = useState('wave')
   const [kParams,      setKParams]      = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
   const [trendParams,      setTrendParams]      = useState({ speed: 0.5 })
-  const [rotationStrength, setRotationStrength] = useState(10)
+  const [rotationStrength, setRotationStrength] = useState(26)
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
   const [exportPhase,  setExportPhase]  = useState('')
