@@ -50,6 +50,8 @@ export default function App() {
   const [textWidth, setTextWidth] = useState(100)
   const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
+  const [effect,    setEffect]    = useState('wave')
+  const [kParams,   setKParams]   = useState({ speed: 0.08, zoom: 1.5, radius: 42 })
   const [playing,   setPlaying]   = useState(true)
   const [recording, setRecording] = useState(false)
   const [fontsReady, setFontsReady] = useState(false)
@@ -88,6 +90,20 @@ export default function App() {
   useEffect(() => {
     rendRef.current?.setWaveParams(wave)
   }, [wave])
+
+  // ── Switch effect mode ─────────────────────────────────────────────────
+  useEffect(() => {
+    rendRef.current?.setEffect(effect)
+  }, [effect])
+
+  // ── Kaleidoscope params ────────────────────────────────────────────────
+  useEffect(() => {
+    rendRef.current?.setKaleidoscopeParams({
+      speed:  kParams.speed,
+      zoom:   kParams.zoom,
+      radius: kParams.radius / 100,   // stored as 0-100, shader expects 0-0.5
+    })
+  }, [kParams])
 
   // ── Animation loop ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -148,6 +164,7 @@ export default function App() {
   }
 
   const setWaveParam = (key, val) => setWave(w => ({ ...w, [key]: val }))
+  const setKParam    = (key, val) => setKParams(k => ({ ...k, [key]: val }))
 
   return (
     <div className="app">
@@ -196,12 +213,25 @@ export default function App() {
           </div>
         </div>
 
-        {/* Wave parameters */}
+        {/* Effect */}
         <div className="sidebar-section">
-          <h3>Wave</h3>
-          <ParamSlider label="Height"    value={wave.height}    min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}    />
-          <ParamSlider label="Speed"     value={wave.speed}     min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}     />
-          <ParamSlider label="Frequency" value={wave.frequency} min={0.5} max={2}   step={0.1} unit="%" onChange={v => setWaveParam('frequency', v)} />
+          <h3>Effect</h3>
+          <div className="seg-toggle">
+            <button className={`seg-btn${effect === 'wave'          ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
+            <button className={`seg-btn${effect === 'kaleidoscope'  ? ' active' : ''}`} onClick={() => setEffect('kaleidoscope')}>Kaleidoscope</button>
+          </div>
+
+          {effect === 'wave' && <>
+            <ParamSlider label="Height"    value={wave.height}    min={0}   max={100} step={1}   unit="%" onChange={v => setWaveParam('height', v)}    />
+            <ParamSlider label="Speed"     value={wave.speed}     min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}     />
+            <ParamSlider label="Frequency" value={wave.frequency} min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)} />
+          </>}
+
+          {effect === 'kaleidoscope' && <>
+            <ParamSlider label="Speed"  value={kParams.speed}  min={0}  max={1}   step={0.01} unit="%" onChange={v => setKParam('speed', v)}  />
+            <ParamSlider label="Zoom"   value={kParams.zoom}   min={0.5} max={4}  step={0.1}  unit="%" onChange={v => setKParam('zoom', v)}   />
+            <ParamSlider label="Radius" value={kParams.radius} min={10} max={50}  step={1}    unit="%" onChange={v => setKParam('radius', v)} />
+          </>}
         </div>
 
         {/* Playback */}

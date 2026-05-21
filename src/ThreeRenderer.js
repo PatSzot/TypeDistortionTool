@@ -7,6 +7,7 @@ const VERTEX_SHADER = /* glsl */`
   uniform float uHeight;
   uniform float uSpeed;
   uniform float uFrequency;
+  uniform float uMode;    // 0 = wave, 1 = kaleidoscope
 
   varying vec2 vUv;
 
@@ -16,17 +17,12 @@ const VERTEX_SHADER = /* glsl */`
     vUv = uv;
     vec3 pos = position;
 
-    float phase = uv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
-    float wave  = sin(phase);
-
-    // Z is the PRIMARY displacement — pushes the surface aggressively toward
-    // and away from the camera. The perspective camera then does all the work:
-    // vertices close to the camera appear much larger (fisheye crest),
-    // vertices far away appear much smaller (trough). No fake scale needed.
-    pos.z += wave * uHeight * 1.6;
-
-    // Y is SECONDARY — gives the visible up/down undulation of the flag ribbon
-    pos.y += wave * uHeight * 0.45;
+    if (uMode < 0.5) {
+      float phase = uv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float wave  = sin(phase);
+      pos.z += wave * uHeight * 1.6;
+      pos.y += wave * uHeight * 0.45;
+    }
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
@@ -34,10 +30,45 @@ const VERTEX_SHADER = /* glsl */`
 
 const FRAGMENT_SHADER = /* glsl */`
   uniform sampler2D uTexture;
+  uniform float uMode;
+  uniform float uTime;
+  uniform float uKSpeed;
+  uniform float uKZoom;
+  uniform float uKRadius;
   varying vec2 vUv;
 
+  const float PI = 3.14159265359;
+
   void main() {
-    gl_FragColor = texture2D(uTexture, vUv);
+    if (uMode < 0.5) {
+      gl_FragColor = texture2D(uTexture, vUv);
+      return;
+    }
+
+    // Screen-square coordinates: x × 2 to account for 2:1 plane aspect
+    vec2 ps = (vUv - 0.5) * vec2(2.0, 1.0);
+
+    // Flat-top hexagonal clip mask (inradius = uKRadius in screen-height units)
+    vec2 ap = abs(ps);
+    if (max(ap.y, ap.x * 0.866025 + ap.y * 0.5) > uKRadius) {
+      gl_FragColor = vec4(0.0);
+      return;
+    }
+
+    // Polar fold — spinning rotation over time
+    float r     = length(ps) / uKZoom;
+    float theta = atan(ps.y, ps.x) + uTime * uKSpeed * PI * 2.0;
+
+    // Fold into one 60-degree segment, then mirror → 6 symmetric slices
+    float seg = PI / 3.0;
+    theta = mod(theta, seg);
+    if (theta > seg * 0.5) theta = seg - theta;
+
+    // Reconstruct and convert back to UV space
+    vec2 q  = vec2(cos(theta), sin(theta)) * r;
+    vec2 uv = fract(q / vec2(2.0, 1.0) + 0.5);
+
+    gl_FragColor = texture2D(uTexture, uv);
   }
 `
 
@@ -94,6 +125,10 @@ export class ThreeRenderer {
       uHeight:    { value: 0.3 },
       uSpeed:     { value: 0.2 },
       uFrequency: { value: 1.0 },
+      uMode:      { value: 0.0 },
+      uKSpeed:    { value: 0.08 },
+      uKZoom:     { value: 1.5 },
+      uKRadius:   { value: 0.42 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -186,6 +221,20 @@ export class ThreeRenderer {
     const chars = [...text]
     return chars.reduce((s, c) => s + ctx.measureText(c).width, 0)
          + trkPx * Math.max(chars.length - 1, 0)
+  }
+
+  // ── Effect switching ───────────────────────────────────────────────────
+
+  setEffect(name) {
+    this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0 : 0.0
+    // Remove tilt in kaleidoscope mode so the hex is centred and undistorted
+    this.mesh.rotation.x = name === 'kaleidoscope' ? 0.0 : -0.22
+  }
+
+  setKaleidoscopeParams({ speed, zoom, radius }) {
+    this.uniforms.uKSpeed.value  = speed
+    this.uniforms.uKZoom.value   = zoom
+    this.uniforms.uKRadius.value = radius
   }
 
   // ── Wave params ────────────────────────────────────────────────────────
