@@ -31,13 +31,13 @@ const AirOpsLogo = () => (
 )
 
 // Inline slider row — used in both Typography and Parameters sections
-function ParamSlider({ label, value, min, max, step, onChange }) {
-  const decimals = step < 1 ? (step < 0.1 ? 2 : 2) : 0
+function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
+  const decimals = step < 1 ? 2 : 0
   return (
     <div className="param-row">
       <div className="param-row-top">
         <span>{label}</span>
-        <span>{Number(value).toFixed(decimals)}</span>
+        <span>{Number(value).toFixed(decimals)}{unit}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))} />
@@ -130,7 +130,10 @@ export default function App() {
     const blockY = (ch - totalH) / 2                   // top of block
 
     const efx = EFFECTS[effect]
-    const p   = params[effect]
+    // For wave: convert height % → CSS px based on font size
+    const p = effect === 'wave'
+      ? { ...params[effect], heightPx: params[effect].height / 100 * fontSize }
+      : params[effect]
     const charPositions = []
 
     lines.forEach((line, lineIdx) => {
@@ -316,6 +319,7 @@ export default function App() {
               label={cfg.label}
               value={params[effect][key] ?? cfg.default}
               min={cfg.min} max={cfg.max} step={cfg.step}
+              unit={cfg.unit ?? ''}
               onChange={v => setParam(key, v)}
             />
           ))}

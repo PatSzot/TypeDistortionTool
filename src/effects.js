@@ -15,20 +15,20 @@ export const EFFECTS = {
   wave: {
     label: 'Wave',
     params: {
-      height:    { label: 'Height',    min: 0,   max: 300,  step: 1,    default: 80   },
-      speed:     { label: 'Speed',     min: 0.1, max: 3,    step: 0.05, default: 0.45 },
-      frequency: { label: 'Frequency', min: 0.5, max: 8,    step: 0.5,  default: 1    },
+      // height stored as 0–100 (%); converted to px in App before compute: height_px = value/100 * fontSize
+      height:    { label: 'Height',    min: 0,   max: 100, step: 1,    default: 30,  unit: '%' },
+      // speed stored as 0–1 (%); passed directly to compute
+      speed:     { label: 'Speed',     min: 0,   max: 1,   step: 0.01, default: 0.2, unit: '%' },
+      frequency: { label: 'Frequency', min: 0.5, max: 2,   step: 0.5,  default: 1              },
     },
-    // cssWidth — canvas CSS width in px, used to compute correct tangent slope
+    // heightPx — height already converted to CSS px by App.jsx
+    // cssWidth  — canvas CSS width, used for correct tangent slope
     compute(i, n, t, p, xNorm = 0.5, cssWidth = 1200) {
       const phase = xNorm * p.frequency * Math.PI * 2 - t * p.speed * Math.PI * 2
 
-      // Vertical displacement
-      const y = Math.sin(phase) * p.height
+      const y = Math.sin(phase) * p.heightPx
 
-      // Tangent rotation: slope of the wave in screen-space px
-      // d(y_px)/d(x_px) = cos(phase) * height * (freq * 2π) / cssWidth
-      const slopePx = Math.cos(phase) * p.height * p.frequency * Math.PI * 2 / cssWidth
+      const slopePx = Math.cos(phase) * p.heightPx * p.frequency * Math.PI * 2 / cssWidth
       const rotation = Math.atan(slopePx) * 180 / Math.PI
 
       return { x: 0, y, rotation, scaleX: 1, scaleY: 1, alpha: 1 }
