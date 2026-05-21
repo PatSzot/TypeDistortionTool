@@ -7,7 +7,7 @@ const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 10, speed: 0.15, frequency: 1.5 }
+const DEFAULT_WAVE     = { height: 10, speed: 0.15, frequency: 1.5, warpAmount: 40 }
 
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0
@@ -251,9 +251,10 @@ export default function App() {
           </div>
 
           {effect === 'wave' && <>
-            <ParamSlider label="Height"    value={wave.height}    min={0}   max={100} step={1}   unit="%" onChange={v => setWaveParam('height', v)}    />
-            <ParamSlider label="Speed"     value={wave.speed}     min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}     />
-            <ParamSlider label="Frequency" value={wave.frequency} min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)} />
+            <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
+            <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
+            <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
+            <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
           </>}
 
           {effect === 'kaleidoscope' && <>

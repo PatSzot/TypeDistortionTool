@@ -32,6 +32,8 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform sampler2D uTexture;
   uniform float uMode;
   uniform float uTime;
+  uniform float uSpeed;
+  uniform float uWarpAmount;
   uniform float uKSpeed;
   uniform float uKZoom;
   uniform float uKRadius;
@@ -42,7 +44,22 @@ const FRAGMENT_SHADER = /* glsl */`
 
   void main() {
     if (uMode < 0.5) {
-      gl_FragColor = texture2D(uTexture, vUv);
+      // ── Displacement warp (cross-pattern, CodePen/shshaw technique) ──────
+      // The displacement field oscillates at wave speed so the loop is seamless.
+      // Strong horizontal smear (scale 65) + subtle vertical (scale 5) matches
+      // the original pen's DisplacementFilter ratio.
+      vec2 warpOff = vec2(
+        sin(uTime * uSpeed * PI * 2.0) * 0.06,
+        cos(uTime * uSpeed * PI * 2.0) * 0.06
+      );
+      vec2 wUV = vUv + warpOff;
+      float dispX = sin(wUV.y * 10.0 * PI);   // R-channel: horizontal displacement
+      float dispY = sin(wUV.x * 10.0 * PI);   // G-channel: vertical  displacement
+      vec2 distortedUV = vUv + vec2(
+        dispX * uWarpAmount * 0.0008,          // strong X  (~65 px at max)
+        dispY * uWarpAmount * 0.00006          // subtle  Y (~5 px at max)
+      );
+      gl_FragColor = texture2D(uTexture, distortedUV);
       return;
     }
 
@@ -126,16 +143,17 @@ export class ThreeRenderer {
     const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_H, SEGS_X, SEGS_Y)
 
     this.uniforms = {
-      uTexture:   { value: this.texture },
-      uTime:      { value: 0 },
-      uHeight:    { value: 0.3 },
-      uSpeed:     { value: 0.2 },
-      uFrequency: { value: 1.0 },
-      uMode:      { value: 0.0 },
-      uKSpeed:    { value: 0.05 },
-      uKZoom:     { value: 0.4 },
-      uKRadius:   { value: 0.42 },
-      uKInnerR:   { value: 0.13 },
+      uTexture:    { value: this.texture },
+      uTime:       { value: 0 },
+      uHeight:     { value: 0.3 },
+      uSpeed:      { value: 0.2 },
+      uFrequency:  { value: 1.0 },
+      uWarpAmount: { value: 40.0 },
+      uMode:       { value: 0.0 },
+      uKSpeed:     { value: 0.05 },
+      uKZoom:      { value: 0.4 },
+      uKRadius:    { value: 0.42 },
+      uKInnerR:    { value: 0.13 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -287,13 +305,14 @@ export class ThreeRenderer {
 
   // ── Wave params ────────────────────────────────────────────────────────
 
-  setWaveParams({ height, speed, frequency }) {
+  setWaveParams({ height, speed, frequency, warpAmount = 0 }) {
     // height 0–100% → world units
     // At 100%, Z displacement = 2.5 * 1.6 = 4.0 world units — nearly fills camera-to-near-clip distance
     // At 50% (default), crest is ~1.9× apparent size of trough
-    this.uniforms.uHeight.value    = (height / 100) * 2.5
-    this.uniforms.uSpeed.value     = speed
-    this.uniforms.uFrequency.value = frequency
+    this.uniforms.uHeight.value     = (height / 100) * 2.5
+    this.uniforms.uSpeed.value      = speed
+    this.uniforms.uFrequency.value  = frequency
+    this.uniforms.uWarpAmount.value = warpAmount
   }
 
   // ── Loop / resize / export ─────────────────────────────────────────────
