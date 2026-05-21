@@ -157,7 +157,7 @@ export default function App() {
     await exportMP4(
       rendRef.current.domElement,
       t => rendRef.current?.tick(t),
-      3, 30,
+      seamlessLoopDuration, 30,
       setExportPhase,
     )
     setRecording(false)
@@ -167,11 +167,33 @@ export default function App() {
   const handleExportLottie = () => {
     const positions = rendRef.current?.charPositions
     if (!positions?.length) return
-    exportLottie(positions, wave, { fontSize, textColor, fontFamily }, 3, 30)
+    exportLottie(positions, wave, { fontSize, textColor, fontFamily }, seamlessLoopDuration, 30)
   }
 
   const setWaveParam = (key, val) => setWave(w => ({ ...w, [key]: val }))
   const setKParam    = (key, val) => setKParams(k => ({ ...k, [key]: val }))
+
+  // ── Seamless loop duration ─────────────────────────────────────────────
+  // Returns the shortest duration ≥ ~3s where the animation returns exactly
+  // to its starting state (whole number of cycles).
+  //
+  // Wave: repeats every 1/speed seconds  →  T = ceil(3·speed)/speed
+  // Kaleidoscope: 6-fold symmetry means it repeats every 1/(6·kSpeed) sec
+  //               →  T = ceil(3·6·kSpeed)/(6·kSpeed)
+  const seamlessLoopDuration = (() => {
+    const TARGET = 3
+    if (effect === 'wave') {
+      const s = wave.speed
+      if (s <= 0) return TARGET
+      const k = Math.max(1, Math.round(TARGET * s))
+      return k / s
+    } else {
+      const s = kParams.speed
+      if (s <= 0) return TARGET
+      const k = Math.max(1, Math.round(TARGET * s * 6))
+      return k / (s * 6)
+    }
+  })()
 
   return (
     <div className="app">
@@ -268,7 +290,7 @@ export default function App() {
             <button className="export-btn primary" onClick={handleExportMP4} disabled={recording}>
               {recording && <span className="rec-dot"/>}
               {recording ? exportPhase : 'Export MP4'}
-              <small>3s loop · H.264</small>
+              <small>{seamlessLoopDuration.toFixed(1)}s seamless loop · H.264</small>
             </button>
             <button className="export-btn" onClick={handleExportLottie}>
               Export Lottie

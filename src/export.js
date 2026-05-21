@@ -4,7 +4,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 // No WASM, no CDN — uses the browser's built-in hardware H.264 encoder.
 // tickFn(timeSeconds) must render the canvas at the given time.
 // Requires Chrome/Edge 94+. Falls back to a clear error on other browsers.
-export async function exportMP4(canvas, tickFn, duration = 3, fps = 30, onPhase) {
+export async function exportMP4(canvas, tickFn, loopDuration = 3, fps = 30, onPhase) {
   if (typeof VideoEncoder === 'undefined') {
     alert('MP4 export requires Chrome or Edge 94+. Try a Chromium-based browser.')
     return
@@ -14,7 +14,7 @@ export async function exportMP4(canvas, tickFn, duration = 3, fps = 30, onPhase)
 
   const w = canvas.width
   const h = canvas.height
-  const totalFrames = Math.round(duration * fps)
+  const totalFrames = Math.round(loopDuration * fps)
 
   const target = new ArrayBufferTarget()
   const muxer  = new Muxer({
@@ -38,9 +38,12 @@ export async function exportMP4(canvas, tickFn, duration = 3, fps = 30, onPhase)
   })
 
   for (let f = 0; f < totalFrames; f++) {
-    tickFn(f / fps)
+    // t mapped so the final frame sits exactly one frame before the loop end,
+    // guaranteeing the animation returns to t=0 state on the next cycle.
+    const t = (f / totalFrames) * loopDuration
+    tickFn(t)
     const frame = new VideoFrame(canvas, {
-      timestamp: Math.round((f / fps) * 1_000_000),  // microseconds
+      timestamp: Math.round(t * 1_000_000),  // microseconds
     })
     encoder.encode(frame, { keyFrame: f % fps === 0 })
     frame.close()
@@ -65,7 +68,7 @@ export async function exportMP4(canvas, tickFn, duration = 3, fps = 30, onPhase)
 // waveParams: { height (0-100), speed (0-1), frequency (0.5-2) }
 // textSettings: { fontSize (CSS px), textColor (hex), fontFamily }
 // duration: seconds, fps: frames per second
-export function exportLottie(charPositions, waveParams, textSettings, duration = 3, fps = 30) {
+export function exportLottie(charPositions, waveParams, textSettings, loopDuration = 3, fps = 30) {
   // Composition dimensions match the text canvas (2048×1024 @ 2×)
   const COMP_W = 2048
   const COMP_H = 1024
@@ -82,7 +85,7 @@ export function exportLottie(charPositions, waveParams, textSettings, duration =
   const worldToPx = COMP_H / PLANE_H_WORLD
 
   const fc = _hexToRgb(textColor)
-  const totalFrames = Math.round(duration * fps)
+  const totalFrames = Math.round(loopDuration * fps)
   const LINEAR = { i: { x: [1], y: [1] }, o: { x: [0], y: [0] } }
 
   const layers = charPositions.map(({ char, x, y }, i) => {
@@ -91,7 +94,7 @@ export function exportLottie(charPositions, waveParams, textSettings, duration =
     const posKF = [], rotKF = [], scaleKF = []
 
     for (let f = 0; f <= totalFrames; f++) {
-      const t     = f / fps
+      const t = (f / totalFrames) * loopDuration
       const phase = xNorm * frequency * Math.PI * 2 - t * speed * Math.PI * 2
       const sinP  = Math.sin(phase)
       const cosP  = Math.cos(phase)
