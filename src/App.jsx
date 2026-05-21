@@ -49,7 +49,6 @@ export default function App() {
   const [tracking,  setTracking]  = useState(-1.12)
   const [textWidth, setTextWidth] = useState(90)
   const [textColor, setTextColor] = useState('#f8fffa')
-  const [bgColor,   setBgColor]   = useState('#000d05')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [playing,   setPlaying]   = useState(true)
   const [recording, setRecording] = useState(false)
@@ -82,8 +81,8 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
-    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth, fontsReady])
+    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth })
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -187,10 +186,6 @@ export default function App() {
             <div className="color-swatch">
               <label>Text</label>
               <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} />
-            </div>
-            <div className="color-swatch">
-              <label>BG</label>
-              <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} />
             </div>
           </div>
         </div>

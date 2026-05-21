@@ -69,6 +69,7 @@ export class ThreeRenderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(w, h)
+    this.renderer.setClearColor(0x000000, 1)  // always pure black
     this.mount.appendChild(this.renderer.domElement)
 
     this.scene  = new THREE.Scene()
@@ -100,6 +101,7 @@ export class ThreeRenderer {
       vertexShader:   VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       side:           THREE.DoubleSide,
+      transparent:    true,
     })
 
     this.mesh = new THREE.Mesh(geo, mat)
@@ -111,7 +113,7 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, bgColor, textWidth = 90 }) {
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90 }) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = canvas.width
@@ -123,8 +125,8 @@ export class ThreeRenderer {
     const trkPx  = tracking * scale
     const lineH  = fSize * leading
 
-    ctx.fillStyle = bgColor
-    ctx.fillRect(0, 0, cw, ch)
+    // Clear to transparent — no background box around the text
+    ctx.clearRect(0, 0, cw, ch)
 
     if (!phrase.trim()) { this.texture.needsUpdate = true; return }
 
