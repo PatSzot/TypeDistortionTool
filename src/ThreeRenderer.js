@@ -212,25 +212,38 @@ export class ThreeRenderer {
     this.charPositions = []
     const wp = this._waveParams   // { speed, frequency, t } set by updateDynamicText
 
+    // ── Per-line extra leading ────────────────────────────────────────────
+    // Sample the wave phase at the horizontal centre of each line.
+    // The resulting intensity adds extra vertical gap below that line,
+    // pushing subsequent lines down — dramatic line-spread at the crest.
+    const lineBonus = lines.map((_, li) => {
+      if (!wp || wp.speed <= 0) return 0
+      const yNorm = (blockY + li * lineH) / ch
+      const phase = (0.5 + yNorm * 0.1763) * wp.frequency * Math.PI * 2
+                  - wp.t * wp.speed * Math.PI * 2
+      const raw   = (Math.sin(phase) + 1) / 2
+      return raw * raw * (3 - 2 * raw) * 320   // up to 320 canvas px (160 CSS px) gap below this line
+    })
+
     lines.forEach((line, li) => {
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
       let   curX   = (cw - lineW) / 2
-      const baseY  = blockY + li * lineH + fSize * 0.78
+      // Accumulate extra gap from all lines above this one
+      const extraY = lineBonus.slice(0, li).reduce((s, v) => s + v, 0)
+      const baseY  = blockY + li * lineH + extraY + fSize * 0.78
       const yNorm  = (blockY + li * lineH) / ch
       const widths = chars.map(c => ctx.measureText(c).width)
 
       chars.forEach((char, ci) => {
-        // Per-character wave intensity — sample the wave phase at this character's
-        // canvas position so only characters near the crest are affected.
+        // Per-character tracking: nearly no change (subtle, just 2 canvas px at crest)
         let extraTrk = 0
         if (wp && wp.speed > 0) {
-          const xNorm    = curX / cw
-          const phase    = (xNorm + yNorm * 0.1763) * wp.frequency * Math.PI * 2
-                         - wp.t * wp.speed * Math.PI * 2
-          const raw      = (Math.sin(phase) + 1) / 2          // 0 = trough, 1 = crest
-          const eased    = raw * raw * (3 - 2 * raw)          // cubic Bezier smooth
-          extraTrk       = eased * 140                         // canvas px (= 70 CSS px at 2×)
+          const xNorm = curX / cw
+          const phase = (xNorm + yNorm * 0.1763) * wp.frequency * Math.PI * 2
+                      - wp.t * wp.speed * Math.PI * 2
+          const raw   = (Math.sin(phase) + 1) / 2
+          extraTrk    = raw * raw * (3 - 2 * raw) * 2   // canvas px — barely perceptible
         }
 
         this.charPositions.push({
