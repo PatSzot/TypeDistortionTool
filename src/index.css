@@ -1,15 +1,42 @@
+@font-face {
+  font-family: 'Serrif VF';
+  src: url('/SerrifVF.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Saans';
+  src: url('/Saans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Saans';
+  src: url('/Saans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Saans Mono';
+  src: url('/SaansMono-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0a0a0a;
-  --surface:   rgba(255,255,255,0.05);
-  --border:    rgba(255,255,255,0.10);
-  --text:      #f0f0f0;
-  --muted:     rgba(255,255,255,0.45);
-  --accent:    #a78bfa;
-  --accent2:   #60a5fa;
-  --sidebar-w: 300px;
-  font-family: system-ui, -apple-system, sans-serif;
+  --bg:        #000d05;
+  --surface:   rgba(0, 41, 16, 0.5);
+  --border:    #002910;
+  --border-mid: rgba(0, 140, 68, 0.25);
+  --text:      #f8fffa;
+  --muted:     rgba(238, 249, 243, 0.5);
+  --accent:    #00ff64;
+  --accent-hover: #00cc50;
+  --accent-mid: #008c44;
+  --sidebar-w: 288px;
+  font-family: 'Saans', 'Inter', sans-serif;
 }
 
 body {
