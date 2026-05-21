@@ -64,6 +64,12 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
+    // ── Trend: flat passthrough ───────────────────────────────────────────
+    if (uMode >= 1.5) {
+      gl_FragColor = texture2D(uTexture, vUv);
+      return;
+    }
+
     // Screen-square coordinates: x × 2 to account for 2:1 plane aspect
     vec2 ps = (vUv - 0.5) * vec2(2.0, 1.0);
 
@@ -266,6 +272,55 @@ export class ThreeRenderer {
     this.texture.needsUpdate = true
   }
 
+  // ── Trend ───────────────────────────────────────────────────────────────
+  // Draws the phrase as a diagonal trail: repeated lines shifting right and
+  // shrinking from top-left (large/past) to bottom-right (small/now).
+  // The trail marches diagonally — new entries appear at top-left and exit
+  // at bottom-right — giving the sense of a trend continuously advancing.
+  _drawTextTrend({ phrase, fontFamily, fontSize, textColor, speed = 0.5 }, t = 0) {
+    const canvas = this.textCanvas
+    const ctx    = canvas.getContext('2d')
+    const cw     = canvas.width   // 2048
+    const ch     = canvas.height  // 1024
+
+    ctx.clearRect(0, 0, cw, ch)
+    if (!phrase.trim()) { this.texture.needsUpdate = true; return }
+
+    const ROWS = 26
+
+    // Trail bounding box (canvas px)
+    const yFrom = ch * 0.04,  yTo = ch * 0.96
+    const xFrom = cw * 0.01,  xTo = cw * 0.70
+
+    const yStep = (yTo - yFrom) / (ROWS - 1)
+    const xStep = (xTo - xFrom) / (ROWS - 1)
+
+    // Font sizes: large at top-left, small at bottom-right
+    const scale    = 2
+    const maxFont  = fontSize * scale * 1.5
+    const minFont  = fontSize * scale * 0.2
+
+    // Diagonal scroll: period = 2 / speed seconds
+    const scrollY  = (t * speed * yStep * 0.5) % yStep
+    const scrollX  = scrollY * (xStep / yStep)   // keeps motion on the trend axis
+
+    ctx.textBaseline = 'alphabetic'
+    ctx.textAlign    = 'left'
+
+    for (let i = -2; i < ROWS + 2; i++) {
+      const progress = i / (ROWS - 1)
+      const fontPx   = Math.max(minFont, Math.round(maxFont + (minFont - maxFont) * progress))
+      const x        = xFrom + i * xStep + scrollX
+      const y        = yFrom + i * yStep + scrollY
+
+      ctx.font      = `700 ${fontPx}px ${fontFamily}`
+      ctx.fillStyle = textColor
+      ctx.fillText(phrase.trim(), x, y)
+    }
+
+    this.texture.needsUpdate = true
+  }
+
   _wrapWords(ctx, text, maxPx, trkPx) {
     const words = text.split(' ')
     const lines = []
@@ -292,9 +347,15 @@ export class ThreeRenderer {
   // ── Effect switching ───────────────────────────────────────────────────
 
   setEffect(name) {
-    this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0 : 0.0
-    // Remove tilt in kaleidoscope mode so the hex is centred and undistorted
-    this.mesh.rotation.x = name === 'kaleidoscope' ? 0.0 : -0.22
+    this._currentEffect = name
+    this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0
+                              : name === 'trend'        ? 2.0
+                              : 0.0
+    this.mesh.rotation.x = (name === 'kaleidoscope' || name === 'trend') ? 0.0 : -0.22
+  }
+
+  setTrendParams(params) {
+    this._trendParams = params
   }
 
   setKaleidoscopeParams({ speed, zoom, radius, innerR }) {
@@ -319,6 +380,9 @@ export class ThreeRenderer {
   // ── Loop / resize / export ─────────────────────────────────────────────
 
   tick(t) {
+    if (this._currentEffect === 'trend' && this._trendParams) {
+      this._drawTextTrend(this._trendParams, t)
+    }
     this.uniforms.uTime.value = t
     this.renderer.render(this.scene, this.camera)
   }

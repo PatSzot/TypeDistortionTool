@@ -51,7 +51,8 @@ export default function App() {
   const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
-  const [kParams,   setKParams]   = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
+  const [kParams,      setKParams]      = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
+  const [trendParams,  setTrendParams]  = useState({ speed: 0.5 })
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
   const [exportPhase,  setExportPhase]  = useState('')
@@ -84,6 +85,10 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
+    if (effect === 'trend') {
+      rendRef.current?.setTrendParams({ phrase, fontFamily, fontSize, textColor, speed: trendParams.speed })
+      return
+    }
     const arcMode   = effect === 'kaleidoscope'
     const arcRadius = arcMode ? (kParams.radius / 100) / kParams.zoom : undefined
     rendRef.current?.drawText({
@@ -91,7 +96,7 @@ export default function App() {
       leading: leading / 100, tracking, textColor, textWidth,
       arcMode, arcRadius,
     })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, kParams])
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, kParams, trendParams])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -183,8 +188,9 @@ export default function App() {
     exportLottie(positions, wave, { fontSize, textColor, fontFamily }, seamlessLoopDuration, 30)
   }
 
-  const setWaveParam = (key, val) => setWave(w => ({ ...w, [key]: val }))
-  const setKParam    = (key, val) => setKParams(k => ({ ...k, [key]: val }))
+  const setWaveParam  = (key, val) => setWave(w => ({ ...w, [key]: val }))
+  const setKParam     = (key, val) => setKParams(k => ({ ...k, [key]: val }))
+  const setTrendParam = (key, val) => setTrendParams(p => ({ ...p, [key]: val }))
 
   // ── Seamless loop duration ─────────────────────────────────────────────
   // Returns the shortest duration ≥ ~3s where the animation returns exactly
@@ -200,6 +206,13 @@ export default function App() {
       if (s <= 0) return TARGET
       const k = Math.max(1, Math.round(TARGET * s))
       return k / s
+    } else if (effect === 'trend') {
+      // period = 2 / speed  (one full line-step advance)
+      const s = trendParams.speed
+      if (s <= 0) return TARGET
+      const period = 2 / s
+      const k = Math.max(1, Math.round(TARGET / period))
+      return k * period
     } else {
       const s = kParams.speed
       if (s <= 0) return TARGET
@@ -259,8 +272,9 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Effect</h3>
           <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'          ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
-            <button className={`seg-btn${effect === 'kaleidoscope'  ? ' active' : ''}`} onClick={() => setEffect('kaleidoscope')}>Kaleidoscope</button>
+            <button className={`seg-btn${effect === 'wave'         ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
+            <button className={`seg-btn${effect === 'kaleidoscope' ? ' active' : ''}`} onClick={() => setEffect('kaleidoscope')}>Kaleidoscope</button>
+            <button className={`seg-btn${effect === 'trend'        ? ' active' : ''}`} onClick={() => setEffect('trend')}>Trend</button>
           </div>
 
           {effect === 'wave' && <>
@@ -268,6 +282,10 @@ export default function App() {
             <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
             <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
             <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
+          </>}
+
+          {effect === 'trend' && <>
+            <ParamSlider label="Speed" value={trendParams.speed} min={0.1} max={1} step={0.05} onChange={v => setTrendParam('speed', v)} />
           </>}
 
           {effect === 'kaleidoscope' && <>
