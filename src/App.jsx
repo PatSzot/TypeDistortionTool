@@ -7,7 +7,7 @@ const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 50, speed: 0.2, frequency: 1 }
+const DEFAULT_WAVE     = { height: 10, speed: 0.15, frequency: 1.5 }
 
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0
@@ -44,11 +44,11 @@ export default function App() {
 
   const [phrase,    setPhrase]    = useState(DEFAULT_PHRASE)
   const [fontStack, setFontStack] = useState('serif')
-  const [fontSize,  setFontSize]  = useState(56)
-  const [leading,   setLeading]   = useState(1.0)
+  const [fontSize,  setFontSize]  = useState(30)
+  const [leading,   setLeading]   = useState(100)   // stored as %, divided by 100 for renderer
   const [tracking,  setTracking]  = useState(-1.12)
-  const [textWidth, setTextWidth] = useState(90)
-  const [textColor, setTextColor] = useState('#f8fffa')
+  const [textWidth, setTextWidth] = useState(100)
+  const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [playing,   setPlaying]   = useState(true)
   const [recording, setRecording] = useState(false)
@@ -81,7 +81,7 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
-    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth })
+    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading: leading / 100, tracking, textColor, textWidth })
   }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady])
 
   // ── Update wave uniforms whenever params change ────────────────────────
@@ -173,10 +173,10 @@ export default function App() {
             <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
               onClick={() => setFontStack('sans')}>Sans</button>
           </div>
-          <ParamSlider label="Size"    value={fontSize} min={12}  max={200} step={2}    onChange={setFontSize} />
-          <ParamSlider label="Leading" value={leading}  min={0.5} max={2.0} step={0.01} onChange={setLeading}  />
-          <ParamSlider label="Tracking"  value={tracking}  min={-20} max={40}  step={0.5}  onChange={setTracking}  />
-          <ParamSlider label="Width"     value={textWidth} min={20}  max={100} step={1} unit="%" onChange={setTextWidth} />
+          <ParamSlider label="Size"     value={fontSize}  min={12}  max={200} step={1}   unit="%" onChange={setFontSize}  />
+          <ParamSlider label="Leading"  value={leading}   min={50}  max={200} step={1}   unit="%" onChange={setLeading}   />
+          <ParamSlider label="Tracking" value={tracking}  min={-20} max={40}  step={0.5} unit="%" onChange={setTracking}  />
+          <ParamSlider label="Width"    value={textWidth} min={20}  max={100} step={1}   unit="%" onChange={setTextWidth} />
         </div>
 
         {/* Colors */}
@@ -195,7 +195,7 @@ export default function App() {
           <h3>Wave</h3>
           <ParamSlider label="Height"    value={wave.height}    min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}    />
           <ParamSlider label="Speed"     value={wave.speed}     min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}     />
-          <ParamSlider label="Frequency" value={wave.frequency} min={0.5} max={2}   step={0.5}       onChange={v => setWaveParam('frequency', v)} />
+          <ParamSlider label="Frequency" value={wave.frequency} min={0.5} max={2}   step={0.1} unit="%" onChange={v => setWaveParam('frequency', v)} />
         </div>
 
         {/* Playback */}
