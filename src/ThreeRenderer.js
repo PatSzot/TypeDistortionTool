@@ -48,14 +48,19 @@ const FRAGMENT_SHADER = /* glsl */`
     // Screen-square coordinates: x × 2 to account for 2:1 plane aspect
     vec2 ps = (vUv - 0.5) * vec2(2.0, 1.0);
 
-    // Flat-top hexagonal clip mask (inradius = uKRadius in screen-height units)
-    vec2 ap = abs(ps);
-    if (max(ap.y, ap.x * 0.866025 + ap.y * 0.5) > uKRadius) {
-      gl_FragColor = vec4(0.0);
-      return;
-    }
+    // ── Hexagram clip ────────────────────────────────────────────────────
+    // Union of two equilateral triangles (circumradius = uKRadius):
+    //   T1 points up  — tip at (0, +R)
+    //   T2 points down — tip at (0, −R)
+    float R = uKRadius;
+    bool inT1 = ps.y >= -R * 0.5 && sqrt(3.0) * abs(ps.x) + ps.y <= R;
+    bool inT2 = ps.y <=  R * 0.5 && sqrt(3.0) * abs(ps.x) - ps.y <= R;
+    if (!inT1 && !inT2) { gl_FragColor = vec4(0.0); return; }
 
-    // Polar fold — spinning rotation over time
+    // ── Inner void ───────────────────────────────────────────────────────
+    if (length(ps) < uKInnerR) { gl_FragColor = vec4(0.0); return; }
+
+    // ── Polar fold — spinning rotation over time ─────────────────────────
     float r     = length(ps) / uKZoom;
     float theta = atan(ps.y, ps.x) + uTime * uKSpeed * PI * 2.0;
 
@@ -64,7 +69,7 @@ const FRAGMENT_SHADER = /* glsl */`
     theta = mod(theta, seg);
     if (theta > seg * 0.5) theta = seg - theta;
 
-    // Reconstruct and convert back to UV space
+    // Reconstruct and convert back to UV space (fract tiles the texture)
     vec2 q  = vec2(cos(theta), sin(theta)) * r;
     vec2 uv = fract(q / vec2(2.0, 1.0) + 0.5);
 
@@ -126,9 +131,10 @@ export class ThreeRenderer {
       uSpeed:     { value: 0.2 },
       uFrequency: { value: 1.0 },
       uMode:      { value: 0.0 },
-      uKSpeed:    { value: 0.08 },
-      uKZoom:     { value: 1.5 },
+      uKSpeed:    { value: 0.05 },
+      uKZoom:     { value: 0.4 },
       uKRadius:   { value: 0.42 },
+      uKInnerR:   { value: 0.13 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -149,7 +155,7 @@ export class ThreeRenderer {
   // ── Text rendering ─────────────────────────────────────────────────────
 
   drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
-    if (arcMode) return this._drawTextArc({ phrase, fontFamily, fontSize, textColor, arcRadius })
+    if (arcMode) return this._drawTextTile({ phrase, fontFamily, fontSize, textColor })
 
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
@@ -202,12 +208,12 @@ export class ThreeRenderer {
     this.texture.needsUpdate = true
   }
 
-  // ── Arc text (kaleidoscope mode) ───────────────────────────────────────
-  // Renders phrase as a ring at the given radius so the kaleidoscope
-  // folds it into a text border that traces the hexagonal shape.
-  // arcRadius is in screen-height units (same scale as uKRadius / zoom).
-  // Derivation: a circle of screen-height radius R lives at canvas px R × canvasHeight.
-  _drawTextArc({ phrase, fontFamily, fontSize, textColor, arcRadius }) {
+  // ── Tiled text (kaleidoscope mode) ────────────────────────────────────
+  // Fills the whole canvas with brick-offset rows of the phrase.
+  // The kaleidoscope's 6-fold polar fold then transforms these horizontal
+  // rows into diagonal bands — one set per star sector — matching the
+  // reference hexagram look.
+  _drawTextTile({ phrase, fontFamily, fontSize, textColor }) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw = canvas.width, ch = canvas.height
@@ -215,38 +221,25 @@ export class ThreeRenderer {
     if (!phrase.trim()) { this.texture.needsUpdate = true; return }
 
     const fSize = fontSize * 2          // 2× oversample
-    const cx = cw / 2, cy = ch / 2
-    const R  = Math.max(10, arcRadius * ch)   // canvas px
+    const lineH = fSize * 1.15          // tight rows → denser star fill
 
-    ctx.font         = `400 ${fSize}px ${fontFamily}`
-    ctx.fillStyle    = textColor
-    ctx.textBaseline = 'middle'
-    ctx.textAlign    = 'center'
+    ctx.font          = `400 ${fSize}px ${fontFamily}`
+    ctx.fillStyle     = textColor
+    ctx.textBaseline  = 'alphabetic'
+    ctx.textAlign     = 'left'
     ctx.letterSpacing = '0px'
 
-    const chars  = [...phrase.trim()]
-    const widths = chars.map(c => ctx.measureText(c).width)
-    const totalW = widths.reduce((s, w) => s + w, 0)
+    // Single tile = phrase + word-spacing gap
+    const tile  = phrase.trim() + '   '
+    const tileW = ctx.measureText(tile).width
 
-    // Repeat phrase just enough to fill one full revolution
-    const reps     = Math.max(1, Math.ceil((2 * Math.PI * R) / totalW))
-    const allChars = Array.from({ length: reps }, () => chars).flat()
-    const allW     = allChars.map(c => ctx.measureText(c).width)
+    for (let row = 0; row * lineH < ch + lineH; row++) {
+      const y      = row * lineH + fSize * 0.8
+      const xShift = (row % 2) * (tileW / 2)   // brick-pattern half-offset
 
-    let angle = -Math.PI / 2          // start at top, flow clockwise
-    for (let i = 0; i < allChars.length; i++) {
-      const step       = allW[i] / R
-      const charAngle  = angle + step / 2
-
-      if (angle >= 3 * Math.PI / 2) break   // one full circle done
-
-      ctx.save()
-      ctx.translate(cx + Math.cos(charAngle) * R, cy + Math.sin(charAngle) * R)
-      ctx.rotate(charAngle + Math.PI / 2)   // tangential — character stands upright on the arc
-      ctx.fillText(allChars[i], 0, 0)
-      ctx.restore()
-
-      angle += step
+      for (let x = -tileW + xShift; x < cw + tileW; x += tileW) {
+        ctx.fillText(tile, x, y)
+      }
     }
 
     this.charPositions = []
@@ -284,10 +277,11 @@ export class ThreeRenderer {
     this.mesh.rotation.x = name === 'kaleidoscope' ? 0.0 : -0.22
   }
 
-  setKaleidoscopeParams({ speed, zoom, radius }) {
+  setKaleidoscopeParams({ speed, zoom, radius, innerR }) {
     this.uniforms.uKSpeed.value  = speed
     this.uniforms.uKZoom.value   = zoom
     this.uniforms.uKRadius.value = radius
+    this.uniforms.uKInnerR.value = innerR
   }
 
   // ── Wave params ────────────────────────────────────────────────────────
