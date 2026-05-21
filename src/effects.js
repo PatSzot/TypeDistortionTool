@@ -16,24 +16,13 @@ export const EFFECTS = {
     label: 'Wave',
     params: {
       height:    { label: 'Height',    min: 0,   max: 150,  step: 1,   default: 50  },
-      magnitude: { label: 'Magnitude', min: 0,   max: 0.9,  step: 0.01, default: 0.4 },
       speed:     { label: 'Speed',     min: 0.1, max: 3,    step: 0.05, default: 0.6 },
       frequency: { label: 'Frequency', min: 0.5, max: 8,    step: 0.5, default: 2   },
     },
     compute(i, n, t, p, xNorm = 0.5) {
-      // Traveling wave: phase progresses left→right, wave moves right over time
       const phase = xNorm * p.frequency * Math.PI * 2 - t * p.speed * Math.PI * 2
-      const wave  = Math.sin(phase)                    // –1 … +1
-
-      // Y displacement — wave crest pulls UP, trough pushes DOWN
-      const y = wave * p.height
-
-      // Fisheye scale — crest inflates, trough stays near normal
-      // Using (wave+1)/2 (0–1) so we never shrink below 1, only inflate at peaks
-      const bulge = (wave + 1) * 0.5                  // 0 at trough, 1 at crest
-      const scale = 1 + bulge * p.magnitude
-
-      return { x: 0, y, rotation: 0, scaleX: scale, scaleY: scale, alpha: 1 }
+      const y = Math.sin(phase) * p.height
+      return { x: 0, y, rotation: 0, scaleX: 1, scaleY: 1, alpha: 1 }
     },
   },
 
