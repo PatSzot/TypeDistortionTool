@@ -176,6 +176,11 @@ export class ThreeRenderer {
     // gives the 3D depth angle visible in the reference images
     this.mesh.rotation.x = -0.22
     this.scene.add(this.mesh)
+
+    // Pointer-driven 3D rotation state
+    this._baseRotX   = -0.22
+    this._ptr        = { x: 0, y: 0 }   // current lerped pointer (-1…1)
+    this._rotStrength = 10               // degrees
   }
 
   // ── Text rendering ─────────────────────────────────────────────────────
@@ -351,7 +356,12 @@ export class ThreeRenderer {
     this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0
                               : name === 'trend'        ? 2.0
                               : 0.0
-    this.mesh.rotation.x = (name === 'kaleidoscope' || name === 'trend') ? 0.0 : -0.22
+    this._baseRotX = (name === 'kaleidoscope' || name === 'trend') ? 0.0 : -0.22
+    this.mesh.rotation.x = this._baseRotX
+  }
+
+  setRotationStrength(deg) {
+    this._rotStrength = deg
   }
 
   setTrendParams(params) {
@@ -379,7 +389,17 @@ export class ThreeRenderer {
 
   // ── Loop / resize / export ─────────────────────────────────────────────
 
-  tick(t) {
+  tick(t, ptrX = 0, ptrY = 0) {
+    // Smooth lerp pointer toward target (eases on and off)
+    const LERP = 0.06
+    this._ptr.x += (ptrX - this._ptr.x) * LERP
+    this._ptr.y += (ptrY - this._ptr.y) * LERP
+
+    // Apply pointer-driven tilt on top of the base rotation for this effect
+    const maxRad = this._rotStrength * Math.PI / 180
+    this.mesh.rotation.y  =  this._ptr.x * maxRad
+    this.mesh.rotation.x  =  this._baseRotX - this._ptr.y * maxRad * 0.6
+
     if (this._currentEffect === 'trend' && this._trendParams) {
       this._drawTextTrend(this._trendParams, t)
     }

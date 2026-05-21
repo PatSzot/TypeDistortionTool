@@ -41,6 +41,7 @@ export default function App() {
   const rafRef     = useRef(null)
   const startRef   = useRef(null)
   const pausedAtRef= useRef(0)
+  const mouseRef   = useRef({ x: 0, y: 0 })
 
   const [phrase,    setPhrase]    = useState(DEFAULT_PHRASE)
   const [fontStack, setFontStack] = useState('serif')
@@ -52,7 +53,8 @@ export default function App() {
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
   const [kParams,      setKParams]      = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
-  const [trendParams,  setTrendParams]  = useState({ speed: 0.5 })
+  const [trendParams,      setTrendParams]      = useState({ speed: 0.5 })
+  const [rotationStrength, setRotationStrength] = useState(10)
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
   const [exportPhase,  setExportPhase]  = useState('')
@@ -108,6 +110,11 @@ export default function App() {
     rendRef.current?.setEffect(effect)
   }, [effect])
 
+  // ── Rotation strength ──────────────────────────────────────────────────
+  useEffect(() => {
+    rendRef.current?.setRotationStrength(rotationStrength)
+  }, [rotationStrength])
+
   // ── Kaleidoscope params ────────────────────────────────────────────────
   useEffect(() => {
     rendRef.current?.setKaleidoscopeParams({
@@ -126,7 +133,7 @@ export default function App() {
     const loop = (ts) => {
       if (cancelled) return
       if (!startRef.current) startRef.current = ts - pausedAtRef.current * 1000
-      rendRef.current?.tick((ts - startRef.current) / 1000)
+      rendRef.current?.tick((ts - startRef.current) / 1000, mouseRef.current.x, mouseRef.current.y)
       rafRef.current = requestAnimationFrame(loop)
     }
 
@@ -225,7 +232,18 @@ export default function App() {
     <div className="app">
 
       {/* Three.js mount — fills available space */}
-      <div ref={mountRef} className="canvas-area" />
+      <div
+        ref={mountRef}
+        className="canvas-area"
+        onMouseMove={e => {
+          const r = e.currentTarget.getBoundingClientRect()
+          mouseRef.current = {
+            x:  ((e.clientX - r.left) / r.width  - 0.5) * 2,
+            y:  ((e.clientY - r.top)  / r.height - 0.5) * 2,
+          }
+        }}
+        onMouseLeave={() => { mouseRef.current = { x: 0, y: 0 } }}
+      />
 
       <aside className="sidebar">
         <div className="sidebar-header">
@@ -294,6 +312,12 @@ export default function App() {
             <ParamSlider label="Radius"  value={kParams.radius} min={10}  max={200} step={1}    unit="%" onChange={v => setKParam('radius', v)} />
             <ParamSlider label="Void"    value={kParams.innerR} min={0}   max={40} step={1}    unit="%" onChange={v => setKParam('innerR', v)} />
           </>}
+        </div>
+
+        {/* Interaction */}
+        <div className="sidebar-section">
+          <h3>Interaction</h3>
+          <ParamSlider label="Rotation" value={rotationStrength} min={0} max={30} step={1} unit="°" onChange={setRotationStrength} />
         </div>
 
         {/* Playback */}
