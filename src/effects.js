@@ -15,37 +15,23 @@ export const EFFECTS = {
   wave: {
     label: 'Wave',
     params: {
-      // height: 0–100%, converted to px in App (height_px = value/100 * fontSize)
-      height:    { label: 'Height',    min: 0,   max: 100, step: 1,    default: 60,  unit: '%' },
-      // depth: drives perspective scale — crest chars appear closer/larger, trough recede/smaller
-      depth:     { label: 'Depth',     min: 0,   max: 100, step: 1,    default: 50,  unit: '%' },
+      // height stored as 0–100 (%); converted to px in App before compute: height_px = value/100 * fontSize
+      height:    { label: 'Height',    min: 0,   max: 100, step: 1,    default: 30,  unit: '%' },
+      // speed stored as 0–1 (%); passed directly to compute
       speed:     { label: 'Speed',     min: 0,   max: 1,   step: 0.01, default: 0.2, unit: '%' },
       frequency: { label: 'Frequency', min: 0.5, max: 2,   step: 0.5,  default: 1              },
     },
-    // heightPx — height converted to CSS px by App.jsx
-    // cssWidth  — canvas CSS width in px, for correct tangent slope
+    // heightPx — height already converted to CSS px by App.jsx
+    // cssWidth  — canvas CSS width, used for correct tangent slope
     compute(i, n, t, p, xNorm = 0.5, cssWidth = 1200) {
       const phase = xNorm * p.frequency * Math.PI * 2 - t * p.speed * Math.PI * 2
-      const wave  = Math.sin(phase)   // –1 … +1
-      const slope = Math.cos(phase)   // derivative of wave
 
-      // ── Y displacement ───────────────────────────────────────────────────
-      const y = wave * p.heightPx
+      const y = Math.sin(phase) * p.heightPx
 
-      // ── Tangent rotation ─────────────────────────────────────────────────
-      // Geometric angle of the wave surface at this x, then amplified 4× so
-      // the ribbon lean is visible at typical height/frequency settings
-      const geometricSlope = slope * p.heightPx * p.frequency * Math.PI * 2 / cssWidth
-      const rotation = Math.atan(geometricSlope) * (180 / Math.PI) * 4
+      const slopePx = Math.cos(phase) * p.heightPx * p.frequency * Math.PI * 2 / cssWidth
+      const rotation = Math.atan(slopePx) * 180 / Math.PI
 
-      // ── Perspective scale (depth illusion) ───────────────────────────────
-      // depthFactor 0–0.55 maps depth 0–100%.
-      // wave=+1 (crest, "toward viewer") → scale = 1 + depthFactor
-      // wave=−1 (trough, "away")         → scale = 1 − depthFactor
-      const depthFactor = (p.depth / 100) * 0.55
-      const scale = Math.max(0.25, 1 + wave * depthFactor)
-
-      return { x: 0, y, rotation, scaleX: scale, scaleY: scale, alpha: 1 }
+      return { x: 0, y, rotation, scaleX: 1, scaleY: 1, alpha: 1 }
     },
   },
 
