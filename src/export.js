@@ -16,18 +16,17 @@ function _recordWebM(canvas, durationMs, fps) {
   })
 }
 
-// ── Private: lazy-load ffmpeg.wasm (single-threaded core, no COOP/COEP needed)
+// ── Private: lazy-load ffmpeg.wasm (single-threaded, no COOP/COEP needed) ──
+// Vite's ?url suffix serves these as hashed static assets — no CDN required.
+import coreURL from '@ffmpeg/core/dist/umd/ffmpeg-core.js?url'
+import wasmURL from '@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url'
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+
 let _ff = null
 async function _getFFmpeg() {
   if (_ff?.loaded) return _ff
-  const { FFmpeg }    = await import('@ffmpeg/ffmpeg')
-  const { toBlobURL } = await import('@ffmpeg/util')
   _ff = new FFmpeg()
-  const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-  await _ff.load({
-    coreURL: await toBlobURL(`${base}/ffmpeg-core.js`,   'text/javascript'),
-    wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
-  })
+  await _ff.load({ coreURL, wasmURL })
   return _ff
 }
 
