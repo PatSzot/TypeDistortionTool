@@ -174,12 +174,7 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText(params) {
-    this._baseTextParams = params   // cache base values for updateDynamicText
-    this._renderText(params)
-  }
-
-  _renderText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false }) {
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
     if (arcMode) return this._drawTextTile({ phrase, fontFamily, fontSize, textColor })
 
     const canvas = this.textCanvas
@@ -210,49 +205,23 @@ export class ThreeRenderer {
 
     ctx.fillStyle = textColor
     this.charPositions = []
-    const wp = this._waveParams   // { speed, frequency, t } set by updateDynamicText
-
-    // ── Per-line extra leading ────────────────────────────────────────────
-    // Sample the wave phase at the horizontal centre of each line.
-    // The resulting intensity adds extra vertical gap below that line,
-    // pushing subsequent lines down — dramatic line-spread at the crest.
-    const lineBonus = lines.map((_, li) => {
-      if (!wp || wp.speed <= 0) return 0
-      const yNorm = (blockY + li * lineH) / ch
-      const phase = (0.5 + yNorm * 0.1763) * wp.frequency * Math.PI * 2
-                  - wp.t * wp.speed * Math.PI * 2
-      const raw   = (1 - Math.sin(phase)) / 2   // 1 at trough/flat, 0 at crest
-      return raw * raw * (3 - 2 * raw) * 320   // up to 320 canvas px (160 CSS px) gap below this line
-    })
 
     lines.forEach((line, li) => {
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
       let   curX   = (cw - lineW) / 2
-      // Accumulate extra gap from all lines above this one
-      const extraY = lineBonus.slice(0, li).reduce((s, v) => s + v, 0)
-      const baseY  = blockY + li * lineH + extraY + fSize * 0.78
-      const yNorm  = (blockY + li * lineH) / ch
+      const baseY  = blockY + li * lineH + fSize * 0.78
       const widths = chars.map(c => ctx.measureText(c).width)
 
       chars.forEach((char, ci) => {
-        // Per-character tracking: nearly no change (subtle, just 2 canvas px at crest)
-        let extraTrk = 0
-        if (wp && wp.speed > 0) {
-          const xNorm = curX / cw
-          const phase = (xNorm + yNorm * 0.1763) * wp.frequency * Math.PI * 2
-                      - wp.t * wp.speed * Math.PI * 2
-          const raw   = (Math.sin(phase) + 1) / 2
-          extraTrk    = raw * raw * (3 - 2 * raw) * 2   // canvas px — barely perceptible
-        }
-
+        // Store centre-ish position (canvas px) for Lottie export
         this.charPositions.push({
           char,
           x: curX + widths[ci] / 2,
           y: baseY - fSize * 0.35,
         })
         ctx.fillText(char, curX, baseY)
-        curX += widths[ci] + trkPx + extraTrk
+        curX += widths[ci] + trkPx
       })
     })
 
@@ -345,18 +314,6 @@ export class ThreeRenderer {
     this.uniforms.uSpeed.value      = speed
     this.uniforms.uFrequency.value  = frequency
     this.uniforms.uWarpAmount.value = warpAmount
-    this._waveParams = { speed, frequency, t: this._waveParams?.t ?? 0 }
-  }
-
-  // ── Per-character dynamic tracking ─────────────────────────────────────
-  // Called every animation frame. Redraws the text canvas with per-character
-  // tracking driven by the wave phase at each character's x position — only
-  // characters at the wave crest spread apart; the rest stay at their base spacing.
-  updateDynamicText(t) {
-    if (!this._baseTextParams || !this._waveParams) return
-    if (this._waveParams.speed <= 0) return
-    this._waveParams.t = t
-    this._renderText(this._baseTextParams)
   }
 
   // ── Loop / resize / export ─────────────────────────────────────────────
