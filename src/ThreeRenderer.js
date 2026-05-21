@@ -18,7 +18,9 @@ const VERTEX_SHADER = /* glsl */`
     vec3 pos = position;
 
     if (uMode < 0.5) {
-      float phase = uv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      // 10° rightward tilt: mix a small Y component into the horizontal phase
+      float tiltedX = uv.x + uv.y * 0.1763;  // tan(10°) = 0.1763
+      float phase = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
       float wave  = sin(phase);
       pos.z += wave * uHeight * 1.6;
       pos.y += wave * uHeight * 0.45;
@@ -50,7 +52,8 @@ const FRAGMENT_SHADER = /* glsl */`
       // wave are always in sync. Displacement depends only on X (not Y), so
       // all lines at the same horizontal position shift together rather than
       // each row warping independently.
-      float phase = vUv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float tiltedX = vUv.x + vUv.y * 0.1763;  // tan(10°) — matches vertex tilt
+      float phase = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
       float dispX = sin(phase);
       float dispY = cos(phase);
       vec2 distortedUV = vUv + vec2(
