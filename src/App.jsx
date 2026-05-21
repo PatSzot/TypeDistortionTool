@@ -148,7 +148,7 @@ export default function App() {
         const xNorm = cxPx / cw               // 0–1 across canvas width
 
         const { x, y, rotation, scaleX, scaleY, alpha } = efx.compute(
-          ci, chars.length, time, p, xNorm
+          ci, chars.length, time, p, xNorm, cssW
         )
 
         charPositions.push({ x: cxPx / dpr, y: baseY / dpr })
