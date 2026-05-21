@@ -44,20 +44,17 @@ const FRAGMENT_SHADER = /* glsl */`
 
   void main() {
     if (uMode < 0.5) {
-      // ── Displacement warp (cross-pattern, CodePen/shshaw technique) ──────
-      // The displacement field oscillates at wave speed so the loop is seamless.
-      // Strong horizontal smear (scale 65) + subtle vertical (scale 5) matches
-      // the original pen's DisplacementFilter ratio.
-      vec2 warpOff = vec2(
-        sin(uTime * uSpeed * PI * 2.0) * 0.06,
-        cos(uTime * uSpeed * PI * 2.0) * 0.06
-      );
-      vec2 wUV = vUv + warpOff;
-      float dispX = sin(wUV.y * 10.0 * PI);   // R-channel: horizontal displacement
-      float dispY = sin(wUV.x * 10.0 * PI);   // G-channel: vertical  displacement
+      // ── Warp ─────────────────────────────────────────────────────────────
+      // UV distortion driven by the same phase as the vertex wave so warp and
+      // wave are always in sync. Displacement depends only on X (not Y), so
+      // all lines at the same horizontal position shift together rather than
+      // each row warping independently.
+      float phase = vUv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float dispX = sin(phase);
+      float dispY = cos(phase);
       vec2 distortedUV = vUv + vec2(
-        dispX * uWarpAmount * 0.0008,          // strong X  (~65 px at max)
-        dispY * uWarpAmount * 0.00006          // subtle  Y (~5 px at max)
+        dispX * uWarpAmount * 0.002,   // horizontal warp
+        dispY * uWarpAmount * 0.0002   // subtle vertical
       );
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
@@ -148,7 +145,7 @@ export class ThreeRenderer {
       uHeight:     { value: 0.3 },
       uSpeed:      { value: 0.2 },
       uFrequency:  { value: 1.0 },
-      uWarpAmount: { value: 40.0 },
+      uWarpAmount: { value: 10.0 },
       uMode:       { value: 0.0 },
       uKSpeed:     { value: 0.05 },
       uKZoom:      { value: 0.4 },
