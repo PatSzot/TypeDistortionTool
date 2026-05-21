@@ -83,8 +83,14 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
-    rendRef.current?.drawText({ phrase, fontFamily, fontSize, leading: leading / 100, tracking, textColor, textWidth })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady])
+    const arcMode   = effect === 'kaleidoscope'
+    const arcRadius = arcMode ? (kParams.radius / 100) / kParams.zoom : undefined
+    rendRef.current?.drawText({
+      phrase, fontFamily, fontSize,
+      leading: leading / 100, tracking, textColor, textWidth,
+      arcMode, arcRadius,
+    })
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, kParams])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {

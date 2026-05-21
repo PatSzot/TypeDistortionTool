@@ -148,7 +148,9 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90 }) {
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
+    if (arcMode) return this._drawTextArc({ phrase, fontFamily, fontSize, textColor, arcRadius })
+
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = canvas.width
@@ -197,6 +199,57 @@ export class ThreeRenderer {
       })
     })
 
+    this.texture.needsUpdate = true
+  }
+
+  // ── Arc text (kaleidoscope mode) ───────────────────────────────────────
+  // Renders phrase as a ring at the given radius so the kaleidoscope
+  // folds it into a text border that traces the hexagonal shape.
+  // arcRadius is in screen-height units (same scale as uKRadius / zoom).
+  // Derivation: a circle of screen-height radius R lives at canvas px R × canvasHeight.
+  _drawTextArc({ phrase, fontFamily, fontSize, textColor, arcRadius }) {
+    const canvas = this.textCanvas
+    const ctx    = canvas.getContext('2d')
+    const cw = canvas.width, ch = canvas.height
+    ctx.clearRect(0, 0, cw, ch)
+    if (!phrase.trim()) { this.texture.needsUpdate = true; return }
+
+    const fSize = fontSize * 2          // 2× oversample
+    const cx = cw / 2, cy = ch / 2
+    const R  = Math.max(10, arcRadius * ch)   // canvas px
+
+    ctx.font         = `400 ${fSize}px ${fontFamily}`
+    ctx.fillStyle    = textColor
+    ctx.textBaseline = 'middle'
+    ctx.textAlign    = 'center'
+    ctx.letterSpacing = '0px'
+
+    const chars  = [...phrase.trim()]
+    const widths = chars.map(c => ctx.measureText(c).width)
+    const totalW = widths.reduce((s, w) => s + w, 0)
+
+    // Repeat phrase just enough to fill one full revolution
+    const reps     = Math.max(1, Math.ceil((2 * Math.PI * R) / totalW))
+    const allChars = Array.from({ length: reps }, () => chars).flat()
+    const allW     = allChars.map(c => ctx.measureText(c).width)
+
+    let angle = -Math.PI / 2          // start at top, flow clockwise
+    for (let i = 0; i < allChars.length; i++) {
+      const step       = allW[i] / R
+      const charAngle  = angle + step / 2
+
+      if (angle >= 3 * Math.PI / 2) break   // one full circle done
+
+      ctx.save()
+      ctx.translate(cx + Math.cos(charAngle) * R, cy + Math.sin(charAngle) * R)
+      ctx.rotate(charAngle + Math.PI / 2)   // tangential — character stands upright on the arc
+      ctx.fillText(allChars[i], 0, 0)
+      ctx.restore()
+
+      angle += step
+    }
+
+    this.charPositions = []
     this.texture.needsUpdate = true
   }
 
