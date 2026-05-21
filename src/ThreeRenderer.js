@@ -174,7 +174,13 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
+  drawText(params) {
+    this._baseTextParams = params   // cache so updateDynamicText can rebuild with offsets
+    this._dynEased = -1             // invalidate so next updateDynamicText redraws
+    this._renderText(params)
+  }
+
+  _renderText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false }) {
     if (arcMode) return this._drawTextTile({ phrase, fontFamily, fontSize, textColor })
 
     const canvas = this.textCanvas
@@ -226,6 +232,34 @@ export class ThreeRenderer {
     })
 
     this.texture.needsUpdate = true
+  }
+
+  // ── Dynamic tracking/leading driven by wave phase ───────────────────────
+  // Called every frame in wave mode. Uses a cubic Bezier curve to smoothly
+  // expand tracking and leading at the wave crest, returning to rest at trough.
+  updateDynamicText(t) {
+    if (!this._baseTextParams || !this._waveParams) return
+    const { speed, frequency } = this._waveParams
+    if (speed <= 0) return
+
+    // Sample wave phase at horizontal centre of the canvas (x = 0.5 UV)
+    const phase = (0.5 + 0.5 * 0.1763) * frequency * Math.PI * 2
+                - t * speed * Math.PI * 2
+    const raw   = (Math.sin(phase) + 1) / 2          // 0 (trough) → 1 (crest)
+
+    // Smooth cubic Bezier ease-in-out — sharp response near crest, quiet at trough
+    const eased = raw * raw * (3 - 2 * raw)
+
+    // Skip redraw if change is imperceptible
+    if (Math.abs(eased - this._dynEased) < 0.004) return
+    this._dynEased = eased
+
+    const p = this._baseTextParams
+    this._renderText({
+      ...p,
+      tracking: p.tracking + eased * 70,   // up to +70 px extra tracking at crest
+      leading:  p.leading  + eased * 0.7,  // up to +70% extra leading at crest
+    })
   }
 
   // ── Tiled text (kaleidoscope mode) ────────────────────────────────────
@@ -314,6 +348,7 @@ export class ThreeRenderer {
     this.uniforms.uSpeed.value      = speed
     this.uniforms.uFrequency.value  = frequency
     this.uniforms.uWarpAmount.value = warpAmount
+    this._waveParams = { speed, frequency }  // stored for updateDynamicText
   }
 
   // ── Loop / resize / export ─────────────────────────────────────────────

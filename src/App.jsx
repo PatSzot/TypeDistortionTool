@@ -121,7 +121,9 @@ export default function App() {
     const loop = (ts) => {
       if (cancelled) return
       if (!startRef.current) startRef.current = ts - pausedAtRef.current * 1000
-      rendRef.current?.tick((ts - startRef.current) / 1000)
+      const t = (ts - startRef.current) / 1000
+      rendRef.current?.tick(t)
+      if (effect === 'wave') rendRef.current?.updateDynamicText(t)
       rafRef.current = requestAnimationFrame(loop)
     }
 
@@ -130,7 +132,7 @@ export default function App() {
       cancelled = true
       cancelAnimationFrame(rafRef.current)
     }
-  }, [playing])
+  }, [playing, effect])
 
   // ── Playback controls ──────────────────────────────────────────────────
   const togglePlay = () => {
@@ -151,12 +153,17 @@ export default function App() {
   }
 
   // ── Export ─────────────────────────────────────────────────────────────
+  const animTick = t => {
+    rendRef.current?.tick(t)
+    if (effect === 'wave') rendRef.current?.updateDynamicText(t)
+  }
+
   const handleExportMP4 = async () => {
     if (recording) return
     setRecording(true)
     await exportMP4(
       rendRef.current.domElement,
-      t => rendRef.current?.tick(t),
+      animTick,
       seamlessLoopDuration, 30,
       setExportPhase,
     )
@@ -169,7 +176,7 @@ export default function App() {
     setRecording(true)
     await exportGIF(
       rendRef.current.domElement,
-      t => rendRef.current?.tick(t),
+      animTick,
       seamlessLoopDuration,
       setExportPhase,
     )
