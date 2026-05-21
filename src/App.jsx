@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import './App.css'
 import { ThreeRenderer } from './ThreeRenderer.js'
-import { exportMP4, exportLottie } from './export.js'
+import { exportMP4, exportGIF, exportLottie } from './export.js'
 
 const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
@@ -164,6 +164,19 @@ export default function App() {
     setExportPhase('')
   }
 
+  const handleExportGIF = async () => {
+    if (recording) return
+    setRecording(true)
+    await exportGIF(
+      rendRef.current.domElement,
+      t => rendRef.current?.tick(t),
+      seamlessLoopDuration,
+      setExportPhase,
+    )
+    setRecording(false)
+    setExportPhase('')
+  }
+
   const handleExportLottie = () => {
     const positions = rendRef.current?.charPositions
     if (!positions?.length) return
@@ -292,6 +305,10 @@ export default function App() {
               {recording && <span className="rec-dot"/>}
               {recording ? exportPhase : 'Export MP4'}
               <small>{seamlessLoopDuration.toFixed(1)}s seamless loop · H.264</small>
+            </button>
+            <button className="export-btn" onClick={handleExportGIF} disabled={recording}>
+              Export GIF
+              <small>{seamlessLoopDuration.toFixed(1)}s · looping · 15fps</small>
             </button>
             <button className="export-btn" onClick={handleExportLottie}>
               Export Lottie

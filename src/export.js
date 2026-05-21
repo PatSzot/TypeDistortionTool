@@ -1,4 +1,5 @@
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
+import { GIFEncoder, quantize, applyPalette } from 'gifenc'
 
 // ── MP4 export via WebCodecs VideoEncoder + mp4-muxer ──────────────────────
 // No WASM, no CDN — uses the browser's built-in hardware H.264 encoder.
@@ -55,6 +56,42 @@ export async function exportMP4(canvas, tickFn, loopDuration = 3, fps = 30, onPh
   muxer.finalize()
 
   _download(new Blob([target.buffer], { type: 'video/mp4' }), 'type-distortion.mp4', 'video/mp4')
+}
+
+// ── GIF export via gifenc ──────────────────────────────────────────────────
+// 15 fps, max 800 px wide, 256-colour palette per frame, repeat = 0 (loop).
+export async function exportGIF(canvas, tickFn, loopDuration = 3, onPhase) {
+  const FPS = 15
+  const MAX_W = 800
+  const scale = Math.min(1, MAX_W / canvas.width)
+  const w = Math.round(canvas.width  * scale)
+  const h = Math.round(canvas.height * scale)
+  const totalFrames = Math.round(loopDuration * FPS)
+  const delay = Math.round(100 / FPS)  // centiseconds per frame
+
+  onPhase?.('Encoding…')
+
+  // Offscreen 2D canvas for pixel readback + optional downscale
+  const off = document.createElement('canvas')
+  off.width  = w
+  off.height = h
+  const ctx = off.getContext('2d')
+
+  const gif = GIFEncoder()
+
+  for (let f = 0; f < totalFrames; f++) {
+    const t = (f / totalFrames) * loopDuration
+    tickFn(t)
+    ctx.drawImage(canvas, 0, 0, w, h)
+    const { data } = ctx.getImageData(0, 0, w, h)
+    const palette = quantize(data, 256)
+    const index   = applyPalette(data, palette)
+    gif.writeFrame(index, w, h, { palette, delay, repeat: 0 })
+    if (f % 3 === 0) await new Promise(r => setTimeout(r, 0))
+  }
+
+  gif.finish()
+  _download(new Blob([gif.bytesView()], { type: 'image/gif' }), 'type-distortion.gif', 'image/gif')
 }
 
 // ── Lottie JSON export ─────────────────────────────────────────────────────
