@@ -1,27 +1,58 @@
-// ── WebM export via MediaRecorder ──────────────────────────────────────────
-export function exportWebM(canvas, durationMs = 3000, fps = 30) {
+// ── Private: record canvas to a WebM Blob ──────────────────────────────────
+function _recordWebM(canvas, durationMs, fps) {
   return new Promise((resolve, reject) => {
-    const stream = canvas.captureStream(fps)
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm'
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 })
+      ? 'video/webm;codecs=vp9' : 'video/webm'
+    const recorder = new MediaRecorder(
+      canvas.captureStream(fps),
+      { mimeType, videoBitsPerSecond: 8_000_000 }
+    )
     const chunks = []
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: mimeType })
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = 'type-distortion.webm'
-      a.click()
-      URL.revokeObjectURL(url)
-      resolve()
-    }
+    recorder.onstop  = () => resolve(new Blob(chunks, { type: mimeType }))
     recorder.onerror = reject
     recorder.start()
     setTimeout(() => recorder.stop(), durationMs)
   })
+}
+
+// ── Private: lazy-load ffmpeg.wasm (single-threaded core, no COOP/COEP needed)
+let _ff = null
+async function _getFFmpeg() {
+  if (_ff?.loaded) return _ff
+  const { FFmpeg }    = await import('@ffmpeg/ffmpeg')
+  const { toBlobURL } = await import('@ffmpeg/util')
+  _ff = new FFmpeg()
+  const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+  await _ff.load({
+    coreURL: await toBlobURL(`${base}/ffmpeg-core.js`,   'text/javascript'),
+    wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+  })
+  return _ff
+}
+
+// ── MP4 export: record → transcode via ffmpeg.wasm ─────────────────────────
+// onPhase(msg) is called with status strings so the UI can show progress.
+export async function exportMP4(canvas, durationMs = 3000, fps = 30, onPhase) {
+  onPhase?.('Recording…')
+  const webmBlob = await _recordWebM(canvas, durationMs, fps)
+
+  onPhase?.('Loading encoder…')
+  const ff = await _getFFmpeg()
+
+  onPhase?.('Encoding MP4…')
+  await ff.writeFile('in.webm', new Uint8Array(await webmBlob.arrayBuffer()))
+  await ff.exec([
+    '-i', 'in.webm',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18',
+    '-pix_fmt', 'yuv420p',   // required for broad player compatibility
+    'out.mp4',
+  ])
+  const mp4 = await ff.readFile('out.mp4')
+  _download(new Blob([mp4.buffer], { type: 'video/mp4' }), 'type-distortion.mp4', 'video/mp4')
+
+  await ff.deleteFile('in.webm')
+  await ff.deleteFile('out.mp4')
 }
 
 // ── Lottie JSON export ─────────────────────────────────────────────────────

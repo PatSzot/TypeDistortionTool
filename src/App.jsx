@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import './App.css'
 import { ThreeRenderer } from './ThreeRenderer.js'
-import { exportWebM, exportLottie } from './export.js'
+import { exportMP4, exportLottie } from './export.js'
 
 const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
@@ -53,7 +53,8 @@ export default function App() {
   const [effect,    setEffect]    = useState('wave')
   const [kParams,   setKParams]   = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
   const [playing,   setPlaying]   = useState(true)
-  const [recording, setRecording] = useState(false)
+  const [recording,    setRecording]    = useState(false)
+  const [exportPhase,  setExportPhase]  = useState('')
   const [fontsReady, setFontsReady] = useState(false)
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
@@ -150,18 +151,15 @@ export default function App() {
   }
 
   // ── Export ─────────────────────────────────────────────────────────────
-  const handleExportWebM = async () => {
+  const handleExportMP4 = async () => {
     if (recording) return
     setRecording(true)
     const wasPlaying = playing
-    if (!wasPlaying) {
-      startRef.current = null
-      setPlaying(true)
-    }
-    // Three.js renderer's canvas supports captureStream
-    await exportWebM(rendRef.current.domElement, 3000, 30)
+    if (!wasPlaying) { startRef.current = null; setPlaying(true) }
+    await exportMP4(rendRef.current.domElement, 3000, 30, setExportPhase)
     if (!wasPlaying) setPlaying(false)
     setRecording(false)
+    setExportPhase('')
   }
 
   const handleExportLottie = () => {
@@ -265,10 +263,10 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Export</h3>
           <div className="export-btns">
-            <button className="export-btn primary" onClick={handleExportWebM} disabled={recording}>
+            <button className="export-btn primary" onClick={handleExportMP4} disabled={recording}>
               {recording && <span className="rec-dot"/>}
-              {recording ? 'Recording…' : 'Export WebM'}
-              <small>3s loop · VP9</small>
+              {recording ? exportPhase : 'Export MP4'}
+              <small>3s loop · H.264</small>
             </button>
             <button className="export-btn" onClick={handleExportLottie}>
               Export Lottie
