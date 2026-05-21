@@ -15,9 +15,9 @@ export const EFFECTS = {
   wave: {
     label: 'Wave',
     params: {
-      height:    { label: 'Height',    min: 0,   max: 150,  step: 1,   default: 50  },
-      speed:     { label: 'Speed',     min: 0.1, max: 3,    step: 0.05, default: 0.6 },
-      frequency: { label: 'Frequency', min: 0.5, max: 8,    step: 0.5, default: 2   },
+      height:    { label: 'Height',    min: 0,   max: 150,  step: 1,    default: 20   },
+      speed:     { label: 'Speed',     min: 0.1, max: 3,    step: 0.05, default: 0.45 },
+      frequency: { label: 'Frequency', min: 0.5, max: 8,    step: 0.5,  default: 1    },
     },
     compute(i, n, t, p, xNorm = 0.5) {
       const phase = xNorm * p.frequency * Math.PI * 2 - t * p.speed * Math.PI * 2

@@ -8,9 +8,9 @@ const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
 const DEFAULT_EFFECT   = 'wave'
-const DEFAULT_FONT_SZ  = 96
-const DEFAULT_LEADING  = 0.95   // tight stacking — lines overlap slightly
-const DEFAULT_TRACKING = 0      // letter spacing in px
+const DEFAULT_FONT_SZ  = 56
+const DEFAULT_LEADING  = 1.0
+const DEFAULT_TRACKING = -1.12  // –2% of 56px
 const DEFAULT_PARAMS   = Object.fromEntries(
   Object.entries(EFFECTS).map(([k, e]) => [
     k,
