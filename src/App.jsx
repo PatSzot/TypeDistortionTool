@@ -51,7 +51,7 @@ export default function App() {
   const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
-  const [kParams,   setKParams]   = useState({ speed: 0.05, zoom: 0.4, radius: 75, innerR: 13 })
+  const [kParams,   setKParams]   = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
   const [playing,   setPlaying]   = useState(true)
   const [recording, setRecording] = useState(false)
   const [fontsReady, setFontsReady] = useState(false)
@@ -237,7 +237,7 @@ export default function App() {
           {effect === 'kaleidoscope' && <>
             <ParamSlider label="Speed"   value={kParams.speed}  min={0}   max={1}  step={0.01} unit="%" onChange={v => setKParam('speed', v)}  />
             <ParamSlider label="Zoom"    value={kParams.zoom}   min={0.1} max={2}  step={0.05} unit="%" onChange={v => setKParam('zoom', v)}   />
-            <ParamSlider label="Radius"  value={kParams.radius} min={10}  max={100} step={1}    unit="%" onChange={v => setKParam('radius', v)} />
+            <ParamSlider label="Radius"  value={kParams.radius} min={10}  max={200} step={1}    unit="%" onChange={v => setKParam('radius', v)} />
             <ParamSlider label="Void"    value={kParams.innerR} min={0}   max={40} step={1}    unit="%" onChange={v => setKParam('innerR', v)} />
           </>}
         </div>
