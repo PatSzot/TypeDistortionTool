@@ -6,10 +6,12 @@ import { exportWebM, exportLottie } from './export.js'
 const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
-const DEFAULT_PHRASE  = 'Hello World'
-const DEFAULT_EFFECT  = 'wave'
-const DEFAULT_FONT_SZ = 120
-const DEFAULT_PARAMS  = Object.fromEntries(
+const DEFAULT_PHRASE   = 'Craft quality content that wins'
+const DEFAULT_EFFECT   = 'wave'
+const DEFAULT_FONT_SZ  = 96
+const DEFAULT_LEADING  = 0.95   // tight stacking — lines overlap slightly
+const DEFAULT_TRACKING = 0      // letter spacing in px
+const DEFAULT_PARAMS   = Object.fromEntries(
   Object.entries(EFFECTS).map(([k, e]) => [
     k,
     Object.fromEntries(Object.entries(e.params).map(([p, cfg]) => [p, cfg.default]))
@@ -28,32 +30,71 @@ const AirOpsLogo = () => (
   </svg>
 )
 
+// Inline slider row — used in both Typography and Parameters sections
+function ParamSlider({ label, value, min, max, step, onChange }) {
+  const decimals = step < 1 ? (step < 0.1 ? 2 : 2) : 0
+  return (
+    <div className="param-row">
+      <div className="param-row-top">
+        <span>{label}</span>
+        <span>{Number(value).toFixed(decimals)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))} />
+    </div>
+  )
+}
+
 export default function App() {
   const canvasRef    = useRef(null)
   const rafRef       = useRef(null)
   const startRef     = useRef(null)
   const layoutRef    = useRef({})
-  const recordingRef = useRef(false)
 
-  const [phrase,    setPhrase]    = useState(DEFAULT_PHRASE)
-  const [effect,    setEffect]    = useState(DEFAULT_EFFECT)
-  const [params,    setParams]    = useState(DEFAULT_PARAMS)
-  const [fontSize,  setFontSize]  = useState(DEFAULT_FONT_SZ)
-  const [textColor, setTextColor] = useState('#f8fffa')
-  const [bgColor,   setBgColor]   = useState('#000d05')
-  const [fontStack, setFontStack] = useState('serif')   // 'serif' | 'sans'
-  const [playing,   setPlaying]   = useState(true)
-  const [recording, setRecording] = useState(false)
-  const [pausedAt,  setPausedAt]  = useState(0)
-  const [fontsReady, setFontsReady] = useState(false)
+  const [phrase,      setPhrase]      = useState(DEFAULT_PHRASE)
+  const [effect,      setEffect]      = useState(DEFAULT_EFFECT)
+  const [params,      setParams]      = useState(DEFAULT_PARAMS)
+  const [fontSize,    setFontSize]    = useState(DEFAULT_FONT_SZ)
+  const [leading,     setLeading]     = useState(DEFAULT_LEADING)
+  const [tracking,    setTracking]    = useState(DEFAULT_TRACKING)
+  const [textColor,   setTextColor]   = useState('#f8fffa')
+  const [bgColor,     setBgColor]     = useState('#000d05')
+  const [fontStack,   setFontStack]   = useState('serif')
+  const [playing,     setPlaying]     = useState(true)
+  const [recording,   setRecording]   = useState(false)
+  const [pausedAt,    setPausedAt]    = useState(0)
+  const [fontsReady,  setFontsReady]  = useState(false)
 
-  // ── Wait for fonts ────────────────────────────────────────────────────────
-  useEffect(() => {
-    document.fonts.ready.then(() => setFontsReady(true))
-  }, [])
+  useEffect(() => { document.fonts.ready.then(() => setFontsReady(true)) }, [])
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
   const fontName   = fontStack === 'serif' ? 'Serrif VF' : 'Saans'
+
+  // ── Word-wrap helper ───────────────────────────────────────────────────────
+  // Returns string[] of lines, each fitting within maxPx given current ctx font + tracking
+  function wrapWords(ctx, text, maxPx, trackPx) {
+    const words = text.split(' ')
+    const lines = []
+    let cur = ''
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w
+      if (measureLine(ctx, test, trackPx) > maxPx && cur) {
+        lines.push(cur)
+        cur = w
+      } else {
+        cur = test
+      }
+    }
+    if (cur) lines.push(cur)
+    return lines
+  }
+
+  // Measure a string manually (sum char widths + tracking * gaps)
+  function measureLine(ctx, text, trackPx) {
+    const chars = [...text]
+    return chars.reduce((sum, c) => sum + ctx.measureText(c).width, 0)
+         + trackPx * Math.max(chars.length - 1, 0)
+  }
 
   // ── Draw frame ────────────────────────────────────────────────────────────
   const drawFrame = useCallback((time) => {
@@ -63,56 +104,71 @@ export default function App() {
     const cw  = canvas.width
     const ch  = canvas.height
     const dpr = window.devicePixelRatio || 1
+    const cssW = cw / dpr
+    const cssH = ch / dpr
 
     ctx.fillStyle = bgColor
     ctx.fillRect(0, 0, cw, ch)
 
-    const chars = [...phrase]
-    if (!chars.length) return
+    if (!phrase.trim()) return
 
-    const fSize = fontSize * dpr
-    const fontStr = fontsReady
+    const fSize  = fontSize * dpr
+    const trkPx  = tracking * dpr   // tracking in canvas pixels
+    const lineH  = fSize * leading  // canvas-px line advance
+
+    ctx.letterSpacing = '0px'
+    ctx.textBaseline  = 'alphabetic'
+    ctx.textAlign     = 'left'
+    ctx.font = fontsReady
       ? `400 ${fSize}px ${fontFamily}`
       : `400 ${fSize}px ${fontStack === 'serif' ? 'Georgia, serif' : 'Inter, system-ui, sans-serif'}`
 
-    ctx.font         = fontStr
-    ctx.textBaseline = 'alphabetic'
-    ctx.textAlign    = 'left'
-
-    const metrics = chars.map(c => ctx.measureText(c === ' ' ? '\u2002' : c))
-    const widths  = metrics.map(m => m.width)
-    const totalW  = widths.reduce((a, b) => a + b, 0)
-
-    const startX = (cw - totalW) / 2
-    const baseY  = ch / 2 + fSize * 0.35
+    const pad    = 60 * dpr
+    const maxW   = cw - pad * 2
+    const lines  = wrapWords(ctx, phrase.trim(), maxW, trkPx)
+    const totalH = (lines.length - 1) * lineH + fSize  // last line only needs cap height
+    const blockY = (ch - totalH) / 2                   // top of block
 
     const efx = EFFECTS[effect]
     const p   = params[effect]
-    const n   = chars.length
     const charPositions = []
 
-    let curX = startX
-    for (let i = 0; i < n; i++) {
-      const { x, y, rotation, scaleX, scaleY, alpha } = efx.compute(i, n, time, p)
-      const cx = curX + widths[i] / 2
-      const cy = baseY
+    lines.forEach((line, lineIdx) => {
+      const chars    = [...line]
+      const lineW    = measureLine(ctx, line, trkPx)
+      const lineX    = (cw - lineW) / 2          // left edge of line (canvas px)
+      const baseY    = blockY + lineIdx * lineH + fSize * 0.78  // baseline
 
-      charPositions.push({ x: cx / dpr, y: cy / dpr })
+      // Pre-measure each char (raw width, no tracking yet)
+      const widths = chars.map(c => ctx.measureText(c).width)
 
-      ctx.save()
-      ctx.globalAlpha = alpha
-      ctx.translate(cx + x * dpr, cy + y * dpr)
-      ctx.rotate(rotation * Math.PI / 180)
-      ctx.scale(scaleX, scaleY)
-      ctx.fillStyle = textColor
-      ctx.fillText(chars[i], -widths[i] / 2, 0)
-      ctx.restore()
+      let curX = lineX
+      chars.forEach((char, ci) => {
+        const cxPx  = curX + widths[ci] / 2   // char centre in canvas pixels
+        const xNorm = cxPx / cw               // 0–1 across canvas width
 
-      curX += widths[i]
-    }
+        const { x, y, rotation, scaleX, scaleY, alpha } = efx.compute(
+          ci, chars.length, time, p, xNorm
+        )
 
-    layoutRef.current = { charPositions, fontName, fontSize, w: cw / dpr, h: ch / dpr }
-  }, [phrase, effect, params, fontSize, textColor, bgColor, fontFamily, fontName, fontStack, fontsReady])
+        charPositions.push({ x: cxPx / dpr, y: baseY / dpr })
+
+        ctx.save()
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha))
+        ctx.translate(cxPx + x * dpr, baseY + y * dpr)
+        ctx.rotate(rotation * Math.PI / 180)
+        ctx.scale(scaleX, scaleY)
+        ctx.fillStyle = textColor
+        ctx.fillText(char, -widths[ci] / 2, 0)
+        ctx.restore()
+
+        curX += widths[ci] + trkPx
+      })
+    })
+
+    layoutRef.current = { charPositions, fontName, fontSize, w: cssW, h: cssH }
+  }, [phrase, effect, params, fontSize, leading, tracking, textColor, bgColor,
+      fontFamily, fontName, fontStack, fontsReady])
 
   // ── Animation loop ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -121,8 +177,7 @@ export default function App() {
     const loop = (ts) => {
       if (cancelled) return
       if (!startRef.current) startRef.current = ts - pausedAt * 1000
-      const elapsed = (ts - startRef.current) / 1000
-      drawFrame(elapsed)
+      drawFrame((ts - startRef.current) / 1000)
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
@@ -146,11 +201,11 @@ export default function App() {
     return () => ro.disconnect()
   }, [])
 
-  // ── Pause / play ──────────────────────────────────────────────────────────
+  // ── Playback ──────────────────────────────────────────────────────────────
   const togglePlay = () => {
     if (playing) {
-      const now = performance.now()
-      const elapsed = startRef.current != null ? (now - startRef.current) / 1000 : 0
+      const elapsed = startRef.current != null
+        ? (performance.now() - startRef.current) / 1000 : 0
       setPausedAt(elapsed)
       startRef.current = null
     } else {
@@ -165,7 +220,7 @@ export default function App() {
     if (!playing) drawFrame(0)
   }
 
-  // ── Export WebM ───────────────────────────────────────────────────────────
+  // ── Export ────────────────────────────────────────────────────────────────
   const handleExportWebM = async () => {
     if (recording) return
     const canvas = canvasRef.current
@@ -181,9 +236,8 @@ export default function App() {
     exportLottie(phrase, effect, params[effect], layoutRef.current, 3, 30)
   }
 
-  const setParam = (key, value) => {
+  const setParam = (key, value) =>
     setParams(prev => ({ ...prev, [effect]: { ...prev[effect], [key]: value } }))
-  }
 
   const efxParams = EFFECTS[effect].params
 
@@ -194,56 +248,38 @@ export default function App() {
       </div>
 
       <aside className="sidebar">
-        {/* Header */}
         <div className="sidebar-header">
           <AirOpsLogo />
           <span>Type</span>
         </div>
 
-        {/* Phrase */}
+        {/* ── Phrase ── */}
         <div className="sidebar-section">
           <h3>Phrase</h3>
           <div className="field">
             <textarea
               value={phrase}
               onChange={e => setPhrase(e.target.value)}
-              placeholder="Enter phrase..."
+              placeholder="Enter phrase…"
             />
           </div>
         </div>
 
-        {/* Font */}
+        {/* ── Typography ── */}
         <div className="sidebar-section">
-          <h3>Font</h3>
+          <h3>Typography</h3>
           <div className="seg-toggle">
-            <button
-              className={`seg-btn${fontStack === 'serif' ? ' active' : ''}`}
-              onClick={() => setFontStack('serif')}
-            >
-              Serif
-            </button>
-            <button
-              className={`seg-btn${fontStack === 'sans' ? ' active' : ''}`}
-              onClick={() => setFontStack('sans')}
-            >
-              Sans
-            </button>
+            <button className={`seg-btn${fontStack === 'serif' ? ' active' : ''}`}
+              onClick={() => setFontStack('serif')}>Serif</button>
+            <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
+              onClick={() => setFontStack('sans')}>Sans</button>
           </div>
-          <div className="param-row">
-            <div className="param-row-top">
-              <span>Size</span>
-              <span>{fontSize}px</span>
-            </div>
-            <input
-              type="range"
-              min={24} max={300} step={2}
-              value={fontSize}
-              onChange={e => setFontSize(Number(e.target.value))}
-            />
-          </div>
+          <ParamSlider label="Size"    value={fontSize} min={18}   max={300}  step={2}    onChange={setFontSize} />
+          <ParamSlider label="Leading" value={leading}  min={0.5}  max={2.0}  step={0.01} onChange={setLeading} />
+          <ParamSlider label="Tracking" value={tracking} min={-20} max={40}   step={0.5}  onChange={setTracking} />
         </div>
 
-        {/* Colors */}
+        {/* ── Colors ── */}
         <div className="sidebar-section">
           <h3>Colors</h3>
           <div className="color-row">
@@ -258,57 +294,44 @@ export default function App() {
           </div>
         </div>
 
-        {/* Effect */}
+        {/* ── Effect ── */}
         <div className="sidebar-section">
           <h3>Effect</h3>
           <div className="effect-pills">
             {Object.entries(EFFECTS).map(([key, e]) => (
-              <button
-                key={key}
+              <button key={key}
                 className={`effect-pill${effect === key ? ' active' : ''}`}
-                onClick={() => setEffect(key)}
-              >
+                onClick={() => setEffect(key)}>
                 {e.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Parameters */}
+        {/* ── Parameters ── */}
         <div className="sidebar-section">
           <h3>Parameters</h3>
           {Object.entries(efxParams).map(([key, cfg]) => (
-            <div className="param-row" key={key}>
-              <div className="param-row-top">
-                <span>{cfg.label}</span>
-                <span>{(params[effect][key] ?? cfg.default).toFixed(cfg.step < 1 ? 2 : 0)}</span>
-              </div>
-              <input
-                type="range"
-                min={cfg.min} max={cfg.max} step={cfg.step}
-                value={params[effect][key] ?? cfg.default}
-                onChange={e => setParam(key, Number(e.target.value))}
-              />
-            </div>
+            <ParamSlider key={key}
+              label={cfg.label}
+              value={params[effect][key] ?? cfg.default}
+              min={cfg.min} max={cfg.max} step={cfg.step}
+              onChange={v => setParam(key, v)}
+            />
           ))}
         </div>
 
-        {/* Playback */}
+        {/* ── Playback ── */}
         <div className="sidebar-section">
           <h3>Playback</h3>
           <div className="playback-row">
-            <button className={`icon-btn${playing ? ' active' : ''}`} onClick={togglePlay} title={playing ? 'Pause' : 'Play'}>
-              {playing ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-              )}
+            <button className={`icon-btn${playing ? ' active' : ''}`} onClick={togglePlay}>
+              {playing
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              }
             </button>
-            <button className="icon-btn" onClick={resetAnim} title="Reset">
+            <button className="icon-btn" onClick={resetAnim}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="1 4 1 10 7 10"/>
                 <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
@@ -317,7 +340,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Export */}
+        {/* ── Export ── */}
         <div className="sidebar-section">
           <h3>Export</h3>
           <div className="export-btns">
