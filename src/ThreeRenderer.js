@@ -33,6 +33,7 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uMode;
   uniform float uTime;
   uniform float uSpeed;
+  uniform float uFrequency;
   uniform float uWarpAmount;
   uniform float uKSpeed;
   uniform float uKZoom;
