@@ -6,7 +6,7 @@ import { exportWebM, exportLottie } from './export.js'
 const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
-const DEFAULT_PHRASE   = 'Craft quality content that wins'
+const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
 const DEFAULT_EFFECT   = 'wave'
 const DEFAULT_FONT_SZ  = 96
 const DEFAULT_LEADING  = 0.95   // tight stacking — lines overlap slightly
