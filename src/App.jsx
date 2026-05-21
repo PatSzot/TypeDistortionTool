@@ -132,7 +132,7 @@ export default function App() {
     const efx = EFFECTS[effect]
     // For wave: convert height % → CSS px based on font size
     const p = effect === 'wave'
-      ? { ...params[effect], heightPx: params[effect].height / 100 * fontSize }
+      ? { ...params[effect], heightPx: params[effect].height / 100 * fontSize * 2.5 }
       : params[effect]
     const charPositions = []
 
