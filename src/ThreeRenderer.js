@@ -35,6 +35,7 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uKSpeed;
   uniform float uKZoom;
   uniform float uKRadius;
+  uniform float uKInnerR;
   varying vec2 vUv;
 
   const float PI = 3.14159265359;
