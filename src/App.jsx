@@ -141,6 +141,12 @@ export default function App() {
     setRecording(false)
   }
 
+  const handleExportLottie = () => {
+    const positions = rendRef.current?.charPositions
+    if (!positions?.length) return
+    exportLottie(positions, wave, { fontSize, textColor, fontFamily }, 3, 30)
+  }
+
   const setWaveParam = (key, val) => setWave(w => ({ ...w, [key]: val }))
 
   return (
@@ -225,6 +231,10 @@ export default function App() {
               {recording && <span className="rec-dot"/>}
               {recording ? 'Recording…' : 'Export WebM'}
               <small>3s loop · VP9</small>
+            </button>
+            <button className="export-btn" onClick={handleExportLottie}>
+              Export Lottie
+              <small>3s · JSON · per-char wave</small>
             </button>
           </div>
         </div>

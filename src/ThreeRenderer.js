@@ -141,6 +141,7 @@ export class ThreeRenderer {
     const blockY = (ch - totalH) / 2
 
     ctx.fillStyle = textColor
+    this.charPositions = []
 
     lines.forEach((line, li) => {
       const chars  = [...line]
@@ -150,6 +151,12 @@ export class ThreeRenderer {
       const widths = chars.map(c => ctx.measureText(c).width)
 
       chars.forEach((char, ci) => {
+        // Store centre-ish position (canvas px) for Lottie export
+        this.charPositions.push({
+          char,
+          x: curX + widths[ci] / 2,
+          y: baseY - fSize * 0.35,
+        })
         ctx.fillText(char, curX, baseY)
         curX += widths[ci] + trkPx
       })
