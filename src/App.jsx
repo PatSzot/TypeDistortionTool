@@ -7,7 +7,7 @@ const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 30, speed: 0.2, frequency: 1 }
+const DEFAULT_WAVE     = { height: 50, speed: 0.2, frequency: 1 }
 
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0

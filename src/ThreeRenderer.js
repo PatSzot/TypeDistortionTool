@@ -16,16 +16,17 @@ const VERTEX_SHADER = /* glsl */`
     vUv = uv;
     vec3 pos = position;
 
-    // Phase travels left → right across the UV x axis
     float phase = uv.x * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
     float wave  = sin(phase);
 
-    // Y displacement  — vertical wave
-    pos.y += wave * uHeight;
+    // Z is the PRIMARY displacement — pushes the surface aggressively toward
+    // and away from the camera. The perspective camera then does all the work:
+    // vertices close to the camera appear much larger (fisheye crest),
+    // vertices far away appear much smaller (trough). No fake scale needed.
+    pos.z += wave * uHeight * 1.6;
 
-    // Z displacement — pushes the surface toward / away from the camera,
-    // creating true perspective foreshortening at the crests and troughs
-    pos.z += wave * uHeight * 0.6;
+    // Y is SECONDARY — gives the visible up/down undulation of the flag ribbon
+    pos.y += wave * uHeight * 0.45;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
@@ -71,8 +72,9 @@ export class ThreeRenderer {
     this.mount.appendChild(this.renderer.domElement)
 
     this.scene  = new THREE.Scene()
-    this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100)
-    this.camera.position.z = 2.8
+    // Wide FOV amplifies perspective distortion — crests appear much larger
+    this.camera = new THREE.PerspectiveCamera(72, w / h, 0.05, 100)
+    this.camera.position.z = 4.0
 
     // Offscreen text canvas → texture
     this.textCanvas        = document.createElement('canvas')
@@ -101,6 +103,9 @@ export class ThreeRenderer {
     })
 
     this.mesh = new THREE.Mesh(geo, mat)
+    // Tilt the plane so we're looking at it from slightly above —
+    // gives the 3D depth angle visible in the reference images
+    this.mesh.rotation.x = -0.22
     this.scene.add(this.mesh)
   }
 
@@ -178,8 +183,10 @@ export class ThreeRenderer {
   // ── Wave params ────────────────────────────────────────────────────────
 
   setWaveParams({ height, speed, frequency }) {
-    // height 0–100% → world units (max = PLANE_H * 0.7 for very dramatic distortion)
-    this.uniforms.uHeight.value    = (height / 100) * PLANE_H * 0.7
+    // height 0–100% → world units
+    // At 100%, Z displacement = 2.5 * 1.6 = 4.0 world units — nearly fills camera-to-near-clip distance
+    // At 50% (default), crest is ~1.9× apparent size of trough
+    this.uniforms.uHeight.value    = (height / 100) * 2.5
     this.uniforms.uSpeed.value     = speed
     this.uniforms.uFrequency.value = frequency
   }
