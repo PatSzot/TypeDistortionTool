@@ -6,11 +6,24 @@ import { exportMP4, exportGIF, exportLottie } from './export.js'
 const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
-const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
+const DEFAULT_WAVE = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
-const EFFECT_LABELS = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
-const EFFECT_BG     = { wave: '#0092FF', polygon: '#000000', trend: '#008C44' }
+const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
+const EFFECT_BG        = { wave: '#0092FF', polygon: '#000000', trend: '#008C44' }
+const EFFECT_DEFAULTS  = {
+  wave: {
+    phrase:    'Reading the field is one half of Content Engineering. Building on it is the other. This certification proves you can find the right problem, design a system that solves it, and explain why it matters to the business.',
+    certTitle: 'Systems Builder',
+  },
+  trend: {
+    phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
+    certTitle: 'AEO Analyst',
+  },
+  polygon: {
+    phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
+    certTitle: 'AEO Analyst',
+  },
+}
 
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0
@@ -50,7 +63,7 @@ export default function App() {
   const pausedAtRef= useRef(0)
   const mouseRef   = useRef({ x: 0, y: 0 })
 
-  const [phrase,    setPhrase]    = useState(DEFAULT_PHRASE)
+  const [phrase,    setPhrase]    = useState(EFFECT_DEFAULTS.wave.phrase)
   const [fontStack, setFontStack] = useState('serif')
   const [fontSize,  setFontSize]  = useState(37)
   const [leading,   setLeading]   = useState(111)   // stored as %, divided by 100 for renderer
@@ -68,7 +81,7 @@ export default function App() {
   const [fontsReady, setFontsReady] = useState(false)
 
   const [certMode,  setCertMode]  = useState(true)
-  const [certTitle, setCertTitle] = useState('AEO Analyst')
+  const [certTitle, setCertTitle] = useState(EFFECT_DEFAULTS.wave.certTitle)
   const [certName,  setCertName]  = useState('Ariana Opera')
   const [certZoom,  setCertZoom]  = useState(2.60)
   const [certScale, setCertScale] = useState(1)
@@ -246,6 +259,12 @@ export default function App() {
     exportLottie(positions, wave, { fontSize, textColor, fontFamily }, seamlessLoopDuration, 30)
   }
 
+  const switchEffect = (name) => {
+    setEffect(name)
+    setPhrase(EFFECT_DEFAULTS[name].phrase)
+    setCertTitle(EFFECT_DEFAULTS[name].certTitle)
+  }
+
   const setWaveParam  = (key, val) => setWave(w => ({ ...w, [key]: val }))
   const setTrendParam = (key, val) => setTrendParams(p => ({ ...p, [key]: val }))
 
@@ -387,9 +406,9 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Effect</h3>
           <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => setEffect('wave')}>{EFFECT_LABELS.wave}</button>
-            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => setEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
-            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => setEffect('trend')}>{EFFECT_LABELS.trend}</button>
+            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
+            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => switchEffect('trend')}>{EFFECT_LABELS.trend}</button>
           </div>
 
           {(effect === 'wave' || effect === 'polygon') && <>
