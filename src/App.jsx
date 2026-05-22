@@ -76,6 +76,7 @@ export default function App() {
   const [recording,    setRecording]    = useState(false)
   const [exportPhase,  setExportPhase]  = useState('')
   const [fontsReady, setFontsReady] = useState(false)
+  const [controlsOpen, setControlsOpen] = useState(true)
 
   const [certMode,  setCertMode]  = useState(true)
   const [certTitle, setCertTitle] = useState(EFFECT_DEFAULTS.wave.certTitle)
@@ -322,121 +323,137 @@ export default function App() {
           <span>Type</span>
         </div>
 
-        {/* Certificate Type */}
-        <div className="sidebar-section">
-          <h3>Certificate Type</h3>
-          <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
-            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
-          </div>
-        </div>
+        {/* Accordion toggle */}
+        <button className="accordion-toggle" onClick={() => setControlsOpen(o => !o)}>
+          <span>Controls</span>
+          <svg className={`accordion-chevron${controlsOpen ? ' open' : ''}`}
+            width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 4.5L6 8.5L10 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
 
-        {/* Certificate */}
-        <div className="sidebar-section">
-          <h3>Certificate</h3>
-          <div className="toggle-row">
-            <span>Cert Mode</span>
-            <button className={`toggle-btn${certMode ? ' active' : ''}`} onClick={() => setCertMode(c => !c)}>
-              <span className="toggle-thumb"/>
-            </button>
-          </div>
-          {certMode && <>
-            <div className="field">
-              <label>Title</label>
-              <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+        {/* Collapsible controls */}
+        {controlsOpen && (
+          <div className="accordion-content">
+
+            {/* Certificate Type */}
+            <div className="sidebar-section">
+              <h3>Certificate Type</h3>
+              <div className="seg-toggle">
+                <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
+                <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+              </div>
             </div>
-            <div className="field">
-              <label>Name</label>
-              <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
+
+            {/* Certificate */}
+            <div className="sidebar-section">
+              <h3>Certificate</h3>
+              <div className="toggle-row">
+                <span>Cert Mode</span>
+                <button className={`toggle-btn${certMode ? ' active' : ''}`} onClick={() => setCertMode(c => !c)}>
+                  <span className="toggle-thumb"/>
+                </button>
+              </div>
+              {certMode && <>
+                <div className="field">
+                  <label>Title</label>
+                  <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Name</label>
+                  <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
+                </div>
+              </>}
             </div>
-          </>}
-        </div>
 
-        {/* Phrase */}
-        <div className="sidebar-section">
-          <h3>Phrase</h3>
-          <div className="field">
-            <textarea value={phrase}
-              onChange={e => {
-                setPhrase(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              onFocus={e => {
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
-              }}
-              placeholder="Enter phrase…" />
-          </div>
-        </div>
-
-        {/* Typography */}
-        <div className="sidebar-section">
-          <h3>Typography</h3>
-          <div className="seg-toggle">
-            <button className={`seg-btn${fontStack === 'serif' ? ' active' : ''}`}
-              onClick={() => setFontStack('serif')}>Serrif</button>
-            <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
-              onClick={() => setFontStack('sans')}>Saans</button>
-          </div>
-          <div className="seg-toggle">
-            <button className={`seg-btn${textAlign === 'left'   ? ' active' : ''}`} onClick={() => setTextAlign('left')}>Left</button>
-            <button className={`seg-btn${textAlign === 'center' ? ' active' : ''}`} onClick={() => setTextAlign('center')}>Center</button>
-          </div>
-          <ParamSlider label="Size"     value={fontSize}  min={12}  max={200} step={1}   unit="%" onChange={setFontSize}  />
-          <ParamSlider label="Leading"  value={leading}   min={50}  max={200} step={1}   unit="%" onChange={setLeading}   />
-          <ParamSlider label="Tracking" value={tracking}  min={-20} max={40}  step={0.5} unit="%" onChange={setTracking}  />
-          <ParamSlider label="Width"    value={textWidth} min={20}  max={100} step={1}   unit="%" onChange={setTextWidth} />
-          <ParamSlider label="Zoom"     value={certZoom}  min={0.5} max={3}   step={0.05}         onChange={setCertZoom}  />
-        </div>
-
-        {/* Colors */}
-        <div className="sidebar-section">
-          <h3>Colors</h3>
-          <div className="color-row">
-            <div className="color-swatch">
-              <label>Text</label>
-              <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} />
+            {/* Phrase */}
+            <div className="sidebar-section">
+              <h3>Phrase</h3>
+              <div className="field">
+                <textarea value={phrase}
+                  onChange={e => {
+                    setPhrase(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = e.target.scrollHeight + 'px'
+                  }}
+                  onFocus={e => {
+                    e.target.style.height = 'auto'
+                    e.target.style.height = e.target.scrollHeight + 'px'
+                  }}
+                  placeholder="Enter phrase…" />
+              </div>
             </div>
+
+            {/* Typography */}
+            <div className="sidebar-section">
+              <h3>Typography</h3>
+              <div className="seg-toggle">
+                <button className={`seg-btn${fontStack === 'serif' ? ' active' : ''}`}
+                  onClick={() => setFontStack('serif')}>Serrif</button>
+                <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
+                  onClick={() => setFontStack('sans')}>Saans</button>
+              </div>
+              <div className="seg-toggle">
+                <button className={`seg-btn${textAlign === 'left'   ? ' active' : ''}`} onClick={() => setTextAlign('left')}>Left</button>
+                <button className={`seg-btn${textAlign === 'center' ? ' active' : ''}`} onClick={() => setTextAlign('center')}>Center</button>
+              </div>
+              <ParamSlider label="Size"     value={fontSize}  min={12}  max={200} step={1}   unit="%" onChange={setFontSize}  />
+              <ParamSlider label="Leading"  value={leading}   min={50}  max={200} step={1}   unit="%" onChange={setLeading}   />
+              <ParamSlider label="Tracking" value={tracking}  min={-20} max={40}  step={0.5} unit="%" onChange={setTracking}  />
+              <ParamSlider label="Width"    value={textWidth} min={20}  max={100} step={1}   unit="%" onChange={setTextWidth} />
+              <ParamSlider label="Zoom"     value={certZoom}  min={0.5} max={3}   step={0.05}         onChange={setCertZoom}  />
+            </div>
+
+            {/* Colors */}
+            <div className="sidebar-section">
+              <h3>Colors</h3>
+              <div className="color-row">
+                <div className="color-swatch">
+                  <label>Text</label>
+                  <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Effect params */}
+            <div className="sidebar-section">
+              <h3>Effect</h3>
+              <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
+              <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
+              <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
+              <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
+            </div>
+
+            {/* Interaction */}
+            <div className="sidebar-section">
+              <h3>Interaction</h3>
+              <ParamSlider label="Rotation" value={rotationStrength} min={0} max={30} step={1} unit="°" onChange={setRotationStrength} />
+            </div>
+
+            {/* Playback */}
+            <div className="sidebar-section">
+              <h3>Playback</h3>
+              <div className="playback-row">
+                <button className={`icon-btn${playing ? ' active' : ''}`} onClick={togglePlay}>
+                  {playing
+                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  }
+                </button>
+                <button className="icon-btn" onClick={resetAnim}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
           </div>
-        </div>
+        )}
 
-        {/* Effect params */}
-        <div className="sidebar-section">
-          <h3>Effect</h3>
-          <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
-          <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
-          <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
-          <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
-        </div>
-
-        {/* Interaction */}
-        <div className="sidebar-section">
-          <h3>Interaction</h3>
-          <ParamSlider label="Rotation" value={rotationStrength} min={0} max={30} step={1} unit="°" onChange={setRotationStrength} />
-        </div>
-
-        {/* Playback */}
-        <div className="sidebar-section">
-          <h3>Playback</h3>
-          <div className="playback-row">
-            <button className={`icon-btn${playing ? ' active' : ''}`} onClick={togglePlay}>
-              {playing
-                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              }
-            </button>
-            <button className="icon-btn" onClick={resetAnim}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Export */}
-        <div className="sidebar-section">
+        {/* Export — always visible, pinned to bottom */}
+        <div className="sidebar-section sidebar-export">
           <h3>Export</h3>
           <div className="export-btns">
             <button className="export-btn primary" onClick={handleExportMP4} disabled={recording}>
