@@ -174,9 +174,9 @@ export class ThreeRenderer {
   _targetCanvasH() {
     const camZ    = this.camera.position.z
     const halfFOV = (72 / 2) * Math.PI / 180
-    const visH    = 2 * Math.tan(halfFOV) * camZ         // visible world height
-    const px      = Math.ceil(visH * TEXT_W / PLANE_W)   // world → canvas px
-    return Math.max(TEXT_H, Math.ceil(px * 1.15))        // 15% headroom
+    const visH    = 2 * Math.tan(halfFOV) * camZ       // visible world height
+    const px      = visH * TEXT_W / PLANE_W             // world → canvas px
+    return Math.max(TEXT_H, Math.ceil(px * 3))          // 3× visible height for full coverage
   }
 
   // ── Canvas / plane resize ──────────────────────────────────────────────
@@ -233,7 +233,7 @@ export class ThreeRenderer {
     // Repeat phrase (space-separated) until it fills the visible canvas height
     const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
     const target      = this._targetCanvasH()
-    const linesNeeded = Math.ceil((target - pad * 2) / lineH)
+    const linesNeeded = Math.ceil(target / lineH)
     const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
     const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
     const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
@@ -421,7 +421,7 @@ export class ThreeRenderer {
     // Repeat phrase to fill the visible canvas height
     const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
     const target      = this._targetCanvasH()
-    const linesNeeded = Math.ceil((target - pad * 2) / lineH)
+    const linesNeeded = Math.ceil(target / lineH)
     const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
     const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
     const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
