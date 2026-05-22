@@ -298,8 +298,16 @@ export class ThreeRenderer {
     ctx.clearRect(0, 0, cw, ch)
     if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
+    // The main canvas is 3× the camera-visible height (for wave/polygon seamless
+    // tiling). For the trend effect we must restrict strips to the visible region
+    // only — otherwise most strips fall outside the camera viewport.
+    const camZ     = this.camera.position.z
+    const halfFOV  = (72 / 2) * Math.PI / 180
+    const visH     = Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W)
+    const startY   = Math.round((ch - visH) / 2)  // center of canvas
+
     const NUM      = Math.max(2, Math.round(divisions))
-    const sH       = ch / NUM
+    const sH       = visH / NUM
     const STAG     = 0.015 / speed
     const DUR      = 0.8   / speed
     const phaseLen = DUR + (NUM - 1) * STAG
@@ -309,19 +317,17 @@ export class ThreeRenderer {
 
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
-      const tMod    = (t + pass * phaseLen) % cycle
+      const tMod     = (t + pass * phaseLen) % cycle
       const entering = tMod < phaseLen
 
       for (let i = 0; i < NUM; i++) {
         let sx, pivX
 
         if (entering) {
-          // pass 0: top-to-bottom; pass 1: bottom-to-top — avoids overlap
           const delay = pass === 0 ? i * STAG : (NUM - 1 - i) * STAG
           sx   = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
           pivX = 0
         } else {
-          // Exit direction mirrors the entrance that just played
           const delay = pass === 0 ? (NUM - 1 - i) * STAG : i * STAG
           sx   = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
           pivX = cw
@@ -331,12 +337,14 @@ export class ThreeRenderer {
 
         ctx.save()
         ctx.beginPath()
-        ctx.rect(0, i * sH, cw, sH)
+        // +1px height to eliminate sub-pixel gaps between strips
+        ctx.rect(0, startY + i * sH, cw, sH + 1)
         ctx.clip()
         ctx.translate(pivX, 0)
         ctx.scale(sx, 1)
         ctx.translate(-pivX, 0)
-        ctx.drawImage(this._trendOffscreen, 0, 0)
+        // Offset the offscreen so its y=0 aligns with the visible region
+        ctx.drawImage(this._trendOffscreen, 0, startY)
         ctx.restore()
       }
     }
