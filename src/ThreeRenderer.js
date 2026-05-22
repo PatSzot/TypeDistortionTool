@@ -305,6 +305,14 @@ export class ThreeRenderer {
     const visH    = Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W)
     const startY  = Math.round((ch - visH) / 2)  // center of main canvas = camera viewport
 
+    // Visible x range on the text canvas depends on the camera aspect ratio.
+    // In cert mode (portrait 960×1080) the camera sees only the centre ~50 % of the
+    // 2048 px canvas width, so pivoting strip animations from x=0/cw would make them
+    // invisible for most of their travel.  Pivot from the actual viewport edges instead.
+    const visW   = Math.round(visH * this.camera.aspect)
+    const startX = Math.max(0, Math.round((cw - visW) / 2))
+    const endX   = Math.min(cw, startX + visW)
+
     const NUM      = Math.max(2, Math.round(divisions))
     const sH       = visH / NUM
     const STAG     = 0.015 / speed
@@ -325,11 +333,11 @@ export class ThreeRenderer {
         if (entering) {
           const delay = pass === 0 ? i * STAG : (NUM - 1 - i) * STAG
           sx   = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
-          pivX = 0
+          pivX = startX   // left edge of camera viewport
         } else {
           const delay = pass === 0 ? (NUM - 1 - i) * STAG : i * STAG
           sx   = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
-          pivX = cw
+          pivX = endX     // right edge of camera viewport
         }
 
         if (sx <= 0.001) continue
