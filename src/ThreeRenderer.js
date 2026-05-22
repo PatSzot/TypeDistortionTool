@@ -51,7 +51,8 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uKRadius;
   uniform float uKInnerR;
   uniform float uTrendWarp;
-  uniform float uTrendAnimT;  // 0→1 per enter/exit phase, updated each frame
+  uniform float uTrendEdgeA;  // 0→1 left-to-right edge for pass 0
+  uniform float uTrendEdgeB;  // 0→1 left-to-right edge for pass 1
   varying vec2 vUv;
 
   const float PI = 3.14159265359;
@@ -90,14 +91,14 @@ const FRAGMENT_SHADER = /* glsl */`
     }
 
     // ── Trend: edge-localised warp ────────────────────────────────────────
-    // uTrendAnimT (0→1) approximates the x-position of the moving transition
-    // edge each frame. A squared falloff limits distortion to a narrow band
-    // around that edge — no warp elsewhere on the texture.
+    // Two independent edges (A = pass 0, B = pass 1), both sweeping 0→1.
+    // Warp is a fixed Y-sine band localised near each edge — no back-and-forth.
     if (uMode >= 1.5) {
-      float edgeDist = abs(vUv.x - uTrendAnimT);
-      float falloff  = max(0.0, 1.0 - edgeDist / 0.12);
-      falloff = falloff * falloff;
-      float disp = sin(vUv.y * PI * 6.0) * falloff;
+      float dA = abs(vUv.x - uTrendEdgeA);
+      float fA = max(0.0, 1.0 - dA / 0.12); fA *= fA;
+      float dB = abs(vUv.x - uTrendEdgeB);
+      float fB = max(0.0, 1.0 - dB / 0.12); fB *= fB;
+      float disp = sin(vUv.y * PI * 6.0) * (fA + fB);
       vec2 distortedUV = vUv + vec2(disp * uTrendWarp * 0.003, 0.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
@@ -194,8 +195,9 @@ export class ThreeRenderer {
       uKZoom:      { value: 0.4 },
       uKRadius:    { value: 0.42 },
       uKInnerR:    { value: 0.13 },
-      uTrendWarp:   { value: 10.0 },
-      uTrendAnimT:  { value: 0.0 },
+      uTrendWarp:  { value: 10.0 },
+      uTrendEdgeA: { value: -1.0 },
+      uTrendEdgeB: { value: -1.0 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -335,16 +337,25 @@ export class ThreeRenderer {
 
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    // Warp edge position: use pass-0's median strip sx as the representative
-    // edge x (0→1), so the warp band tracks the actual strip boundary.
-    const tMod0    = t % cycle
-    const ent0     = tMod0 < phaseLen
-    const midDelay = Math.floor(NUM / 2) * STAG
-    const midExDelay = (NUM - 1 - Math.floor(NUM / 2)) * STAG
-    const edgeX = ent0
-      ? ease(Math.max(0, Math.min(1, (tMod0 - midDelay) / DUR)))
-      : 1 - ease(Math.max(0, Math.min(1, (tMod0 - phaseLen - midExDelay) / DUR)))
-    this.uniforms.uTrendAnimT.value = edgeX
+    // Both entering and exiting edges sweep left-to-right (0→1):
+    //   Entering: right edge of revealed content = sx (expands 0→1 from left)
+    //   Exiting:  left edge of collapsed content = 1-sx (advances 0→1 rightward)
+    // Use the median strip as a representative for each pass.
+    const _edgeX = (tMod, entering) => {
+      const midI = Math.floor(NUM / 2)
+      if (entering) {
+        const delay = midI * STAG
+        return ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
+      } else {
+        const delay = (NUM - 1 - midI) * STAG
+        const sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
+        return 1 - sx   // left boundary of shrinking strip = moves 0→1
+      }
+    }
+    const tMod0 = t % cycle
+    const tMod1 = (t + phaseLen) % cycle
+    this.uniforms.uTrendEdgeA.value = _edgeX(tMod0, tMod0 < phaseLen)
+    this.uniforms.uTrendEdgeB.value = _edgeX(tMod1, tMod1 < phaseLen)
 
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
