@@ -314,7 +314,7 @@ export class ThreeRenderer {
     ctx.clearRect(0, 0, cw, ch)
     if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
-    const NUM      = 40
+    const NUM      = 12
     const sH       = ch / NUM
     const STAG     = 0.015 / speed
     const DUR      = 0.8   / speed
