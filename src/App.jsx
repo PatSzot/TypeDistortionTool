@@ -325,6 +325,15 @@ export default function App() {
           <span>Type</span>
         </div>
 
+        {/* Certificate Type */}
+        <div className="sidebar-section">
+          <h3>Certificate Type</h3>
+          <div className="seg-toggle">
+            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
+            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+          </div>
+        </div>
+
         {/* Certificate */}
         <div className="sidebar-section">
           <h3>Certificate</h3>
@@ -395,20 +404,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* Effect */}
+        {/* Effect params */}
         <div className="sidebar-section">
           <h3>Effect</h3>
-          <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
-            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
-          </div>
-
           <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
           <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
           <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
           <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
-
-
         </div>
 
         {/* Interaction */}
