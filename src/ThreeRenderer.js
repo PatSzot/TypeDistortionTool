@@ -332,13 +332,13 @@ export class ThreeRenderer {
         let sx, pivX
 
         if (entering) {
-          // Top-to-bottom stagger, expand from left edge
-          const delay = i * STAG
+          // pass 0: top-to-bottom; pass 1: bottom-to-top — avoids overlap
+          const delay = pass === 0 ? i * STAG : (NUM - 1 - i) * STAG
           sx   = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
           pivX = 0
         } else {
-          // Bottom-to-top stagger, collapse toward right edge
-          const delay = (NUM - 1 - i) * STAG
+          // Exit direction mirrors the entrance that just played
+          const delay = pass === 0 ? (NUM - 1 - i) * STAG : i * STAG
           sx   = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
           pivX = cw
         }
