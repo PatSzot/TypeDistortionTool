@@ -301,47 +301,41 @@ export class ThreeRenderer {
   }
 
   // ── Trend ───────────────────────────────────────────────────────────────
-  // Kinetic strip animation: the text is sliced into NUM horizontal strips.
-  // Each strip scales in from the right edge (expand) and out to the left
-  // edge (collapse) with a top-to-bottom stagger — replicating the WebGL
-  // Kinetic Typography / GSAP strip effect entirely in Canvas 2D.
+  // Kinetic strip animation. Strips enter top-to-bottom, exit bottom-to-top,
+  // both pivoting on the right edge — so every strip starts and ends at sx=0
+  // from the same anchor, making the cycle perfectly seamless with no blank.
   _drawTextTrend({ speed = 0.5 }, t = 0) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
-    const cw     = canvas.width   // 2048
-    const ch     = canvas.height  // 1024
+    const cw     = canvas.width
+    const ch     = canvas.height
 
     ctx.clearRect(0, 0, cw, ch)
     if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
-    const NUM  = 40
-    const sH   = ch / NUM
-    const STAG = 0.015 / speed   // stagger between strips
-    const DUR  = 0.8   / speed   // duration per strip
-    const HOLD = 0.5   / speed   // hold between in and out phases
-    const phaseLen = DUR + (NUM - 1) * STAG  // time until all strips finish
-    const cycle    = 2 * phaseLen + 2 * HOLD
+    const NUM      = 40
+    const sH       = ch / NUM
+    const STAG     = 0.015 / speed
+    const DUR      = 0.8   / speed
+    const phaseLen = DUR + (NUM - 1) * STAG   // time for all strips to complete one phase
+    const cycle    = 2 * phaseLen             // enter + exit, no hold or pause
     const tMod     = t % cycle
 
-    // power3.inOut (matches GSAP default used in the CodePen)
+    // power3.inOut — matches GSAP easing used in the original CodePen
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
     for (let i = 0; i < NUM; i++) {
-      const delay = i * STAG
-      let   sx    = 0
-      let   pivX  = cw   // entry pivot: right edge  (text expands from right)
+      let sx
 
       if (tMod < phaseLen) {
-        // Entering — expand from right edge
+        // Entering: top-to-bottom stagger
+        const delay = i * STAG
         sx = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
-      } else if (tMod < phaseLen + HOLD) {
-        sx = 1
-      } else if (tMod < 2 * phaseLen + HOLD) {
-        // Exiting — collapse to left edge
-        pivX = 0
-        sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - HOLD - delay) / DUR)))
+      } else {
+        // Exiting: bottom-to-top stagger (reverse order)
+        const delay = (NUM - 1 - i) * STAG
+        sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
       }
-      // else: pause phase, sx = 0 — skip
 
       if (sx <= 0.001) continue
 
@@ -349,9 +343,9 @@ export class ThreeRenderer {
       ctx.beginPath()
       ctx.rect(0, i * sH, cw, sH)
       ctx.clip()
-      ctx.translate(pivX, 0)
+      ctx.translate(cw, 0)   // pivot: right edge for both enter and exit
       ctx.scale(sx, 1)
-      ctx.translate(-pivX, 0)
+      ctx.translate(-cw, 0)
       ctx.drawImage(this._trendOffscreen, 0, 0)
       ctx.restore()
     }

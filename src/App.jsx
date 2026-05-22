@@ -218,11 +218,11 @@ export default function App() {
       const k = Math.max(1, Math.round(TARGET * s))
       return k / s
     } else if (effect === 'trend') {
-      // Exact kinetic strip cycle: 2 × phaseLen + 2 × HOLD
+      // cycle = 2 × phaseLen (no hold or pause)
       const s = trendParams.speed
       if (s <= 0) return TARGET
       const phaseLen = 0.8 / s + 39 * 0.015 / s
-      return 2 * phaseLen + 2 * (0.5 / s)
+      return 2 * phaseLen
     } else {
       const s = kParams.speed
       if (s <= 0) return TARGET
