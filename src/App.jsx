@@ -52,7 +52,7 @@ export default function App() {
   const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
-  const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12, warpAmount: 10 })
+  const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12 })
   const [rotationStrength, setRotationStrength] = useState(26)
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
@@ -92,7 +92,7 @@ export default function App() {
         leading: leading / 100, tracking, textColor, textWidth,
         speed: trendParams.speed,
         divisions: trendParams.divisions,
-        warpAmount: trendParams.warpAmount,
+
       })
       return
     }
@@ -292,7 +292,7 @@ export default function App() {
           {effect === 'trend' && <>
             <ParamSlider label="Speed"     value={trendParams.speed}      min={0.1} max={1}   step={0.05} onChange={v => setTrendParam('speed', v)}      />
             <ParamSlider label="Divisions" value={trendParams.divisions}  min={2}   max={40}  step={1}    onChange={v => setTrendParam('divisions', v)}  />
-            <ParamSlider label="Warp"      value={trendParams.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setTrendParam('warpAmount', v)} />
+
           </>}
 
 

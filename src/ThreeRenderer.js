@@ -45,9 +45,6 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uSpeed;
   uniform float uFrequency;
   uniform float uWarpAmount;
-  uniform float uTrendWarp;
-  uniform float uTrendEdgeA;  // 0→1 left-to-right edge for pass 0
-  uniform float uTrendEdgeB;  // 0→1 left-to-right edge for pass 1
   varying vec2 vUv;
 
   const float PI = 3.14159265359;
@@ -85,17 +82,9 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Trend: edge-localised warp ────────────────────────────────────────
-    // Two independent edges (A = pass 0, B = pass 1), both sweeping 0→1.
-    // Warp is a fixed Y-sine band localised near each edge — no back-and-forth.
+    // ── Trend: flat passthrough ───────────────────────────────────────────
     if (uMode >= 0.5) {
-      float dA = abs(vUv.x - uTrendEdgeA);
-      float fA = max(0.0, 1.0 - dA / 0.12); fA *= fA;
-      float dB = abs(vUv.x - uTrendEdgeB);
-      float fB = max(0.0, 1.0 - dB / 0.12); fB *= fB;
-      float disp = sin(vUv.y * PI * 6.0) * max(fA, fB);
-      vec2 distortedUV = vUv + vec2(disp * uTrendWarp * 0.003, 0.0);
-      gl_FragColor = texture2D(uTexture, distortedUV);
+      gl_FragColor = texture2D(uTexture, vUv);
       return;
     }
 
@@ -157,9 +146,6 @@ export class ThreeRenderer {
       uFrequency:  { value: 1.0 },
       uWarpAmount: { value: 10.0 },
       uMode:       { value: 0.0 },
-      uTrendWarp:  { value: 10.0 },
-      uTrendEdgeA: { value: -1.0 },
-      uTrendEdgeB: { value: -1.0 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -260,12 +246,6 @@ export class ThreeRenderer {
 
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    // Single eased 0→1 sweep per phaseLen, shared by both passes so the two
-    // warp bands are always identical — no seam or glitch at the loop point.
-    const edgeX = ease((t % phaseLen) / phaseLen)
-    this.uniforms.uTrendEdgeA.value = edgeX
-    this.uniforms.uTrendEdgeB.value = edgeX
-
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
       const tMod    = (t + pass * phaseLen) % cycle
@@ -343,7 +323,6 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
-    this.uniforms.uTrendWarp.value = params.warpAmount ?? 10
     // Pre-render the full wrapped paragraph to an offscreen canvas using the
     // same layout logic as _renderText — redrawn only when settings change.
     if (!this._trendOffscreen) {
