@@ -23,34 +23,9 @@ function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   )
 }
 
-function CertSeal() {
-  const cx = 212, cy = 212
-  const RO = 210, RI = 188, N = 24
-  const pts = []
-  for (let i = 0; i < N; i++) {
-    const aOut = (i / N) * Math.PI * 2 - Math.PI / 2
-    const aIn  = ((i + 0.5) / N) * Math.PI * 2 - Math.PI / 2
-    pts.push(`${cx + Math.cos(aOut) * RO},${cy + Math.sin(aOut) * RO}`)
-    pts.push(`${cx + Math.cos(aIn)  * RI},${cy + Math.sin(aIn)  * RI}`)
-  }
-  return (
-    <svg width="424" height="424" viewBox="0 0 424 424" fill="none">
-      <polygon points={pts.join(' ')} fill="#bfd4bb"/>
-      <circle cx={cx} cy={cy} r={RI - 2} fill="#bfd4bb"/>
-      <defs>
-        <path id="seal-arc" d={`M${cx},${cy - 170} a170,170 0 1,1 -0.001,0`}/>
-      </defs>
-      <text fontSize="10" letterSpacing="3.5" fill="#002910"
-        fontFamily="'Saans Mono','DM Mono',monospace" fontWeight="500">
-        <textPath href="#seal-arc">{'CRAFT QUALITY CONTENT \u2022 BUILD SYSTEMS THAT WIN \u2022'}</textPath>
-      </text>
-      <text x={cx} y={cy - 10} textAnchor="middle" fontSize="28" fill="#002910"
-        fontFamily="'Serrif VF',Georgia,serif" fontWeight="700">airOps</text>
-      <text x={cx} y={cy + 16} textAnchor="middle" fontSize="13" fill="#002910"
-        fontFamily="'Saans Mono','DM Mono',monospace" fontWeight="500" letterSpacing="2">UNIVERSITY</text>
-    </svg>
-  )
-}
+const CertSeal = () => (
+  <img src="/AO-Seal.svg" width="436" height="436" alt="AirOps University Seal" />
+)
 
 const AirOpsLogo = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="72" viewBox="0 0 100 32" fill="none" aria-label="AirOps">
