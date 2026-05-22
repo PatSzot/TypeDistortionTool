@@ -23,6 +23,35 @@ function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   )
 }
 
+function CertSeal() {
+  const cx = 212, cy = 212
+  const RO = 210, RI = 188, N = 24
+  const pts = []
+  for (let i = 0; i < N; i++) {
+    const aOut = (i / N) * Math.PI * 2 - Math.PI / 2
+    const aIn  = ((i + 0.5) / N) * Math.PI * 2 - Math.PI / 2
+    pts.push(`${cx + Math.cos(aOut) * RO},${cy + Math.sin(aOut) * RO}`)
+    pts.push(`${cx + Math.cos(aIn)  * RI},${cy + Math.sin(aIn)  * RI}`)
+  }
+  return (
+    <svg width="424" height="424" viewBox="0 0 424 424" fill="none">
+      <polygon points={pts.join(' ')} fill="#bfd4bb"/>
+      <circle cx={cx} cy={cy} r={RI - 2} fill="#bfd4bb"/>
+      <defs>
+        <path id="seal-arc" d={`M${cx},${cy - 170} a170,170 0 1,1 -0.001,0`}/>
+      </defs>
+      <text fontSize="10" letterSpacing="3.5" fill="#002910"
+        fontFamily="'Saans Mono','DM Mono',monospace" fontWeight="500">
+        <textPath href="#seal-arc">{'CRAFT QUALITY CONTENT \u2022 BUILD SYSTEMS THAT WIN \u2022'}</textPath>
+      </text>
+      <text x={cx} y={cy - 10} textAnchor="middle" fontSize="28" fill="#002910"
+        fontFamily="'Serrif VF',Georgia,serif" fontWeight="700">airOps</text>
+      <text x={cx} y={cy + 16} textAnchor="middle" fontSize="13" fill="#002910"
+        fontFamily="'Saans Mono','DM Mono',monospace" fontWeight="500" letterSpacing="2">UNIVERSITY</text>
+    </svg>
+  )
+}
+
 const AirOpsLogo = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="72" viewBox="0 0 100 32" fill="none" aria-label="AirOps">
     <path d="M14.2683 8.35377V11.2588C12.9587 9.16447 10.9253 7.88086 8.40935 7.88086C3.03288 7.88086 0 11.833 0 17.1364C0 22.4735 3.06735 26.5608 8.47828 26.5608C10.9942 26.5608 12.9931 25.2772 14.2683 23.1829V26.0879H18.473V8.35377H14.2683ZM9.30543 23.0478C6.23809 23.0478 4.48039 20.2441 4.48039 17.1364C4.48039 14.0963 6.20362 11.4277 9.37436 11.4277C11.9937 11.4277 14.2339 13.2856 14.2339 17.0688C14.2339 20.7846 12.0971 23.0478 9.30543 23.0478Z" fill="currentColor"/>
@@ -60,6 +89,16 @@ export default function App() {
   const [exportPhase,  setExportPhase]  = useState('')
   const [fontsReady, setFontsReady] = useState(false)
 
+  const [certMode,  setCertMode]  = useState(false)
+  const [certTitle, setCertTitle] = useState('AEO Analyst')
+  const [certName,  setCertName]  = useState('Ariana Opera')
+  const [certScale, setCertScale] = useState(1)
+  const canvasWrapRef = useRef(null)
+
+  // Always-current settings snapshot — read in renderer init to avoid stale closures
+  const settingsRef = useRef({})
+  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign }
+
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
 
   // ── Wait for custom fonts ──────────────────────────────────────────────
@@ -70,8 +109,29 @@ export default function App() {
   // ── Init Three.js renderer ─────────────────────────────────────────────
   useEffect(() => {
     const mount = mountRef.current
-    const rend  = new ThreeRenderer(mount)
+    if (!mount) return
+    const rend = new ThreeRenderer(mount)
     rendRef.current = rend
+
+    // Re-apply all current settings after renderer reinit (e.g. on certMode toggle)
+    const s = settingsRef.current
+    rend.setEffect(s.effect)
+    rend.setWaveParams(s.wave)
+    rend.setRotationStrength(s.rotationStrength)
+    if (s.effect === 'trend') {
+      rend.setTrendParams({
+        phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
+        leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
+        textWidth: s.textWidth, textAlign: s.textAlign,
+        speed: s.trendParams.speed, divisions: s.trendParams.divisions,
+      })
+    } else {
+      rend.drawText({
+        phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
+        leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
+        textWidth: s.textWidth, textAlign: s.textAlign,
+      })
+    }
 
     const ro = new ResizeObserver(() => {
       rend.resize(mount.clientWidth, mount.clientHeight)
@@ -83,7 +143,19 @@ export default function App() {
       rend.dispose()
       rendRef.current = null
     }
-  }, [])
+  }, [certMode])
+
+  // ── Scale cert stage to fit viewport ──────────────────────────────────
+  useEffect(() => {
+    if (!certMode) return
+    const wrap = canvasWrapRef.current
+    if (!wrap) return
+    const update = () => setCertScale(Math.min(wrap.clientWidth / 1920, wrap.clientHeight / 1080))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(wrap)
+    return () => ro.disconnect()
+  }, [certMode])
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
@@ -215,22 +287,41 @@ export default function App() {
     }
   })()
 
+  const onMouseMove = e => {
+    const r = e.currentTarget.getBoundingClientRect()
+    mouseRef.current = {
+      x:  ((e.clientX - r.left) / r.width  - 0.5) * 2,
+      y:  ((e.clientY - r.top)  / r.height - 0.5) * 2,
+    }
+  }
+  const onMouseLeave = () => { mouseRef.current = { x: 0, y: 0 } }
+
   return (
     <div className="app">
 
-      {/* Three.js mount — fills available space */}
-      <div
-        ref={mountRef}
-        className="canvas-area"
-        onMouseMove={e => {
-          const r = e.currentTarget.getBoundingClientRect()
-          mouseRef.current = {
-            x:  ((e.clientX - r.left) / r.width  - 0.5) * 2,
-            y:  ((e.clientY - r.top)  / r.height - 0.5) * 2,
-          }
-        }}
-        onMouseLeave={() => { mouseRef.current = { x: 0, y: 0 } }}
-      />
+      {certMode ? (
+        <div className="cert-wrap" ref={canvasWrapRef}>
+          <div className="cert-stage" style={{ transform: `scale(${certScale})` }}>
+            <div ref={mountRef} className="cert-effect-pane"
+              onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} />
+            <div className="cert-panel">
+              <div className="cert-content">
+                <div className="cert-top">
+                  <div className="cert-title">{certTitle}</div>
+                  <div className="cert-name">{certName}</div>
+                </div>
+                <div className="cert-bottom">
+                  <div className="cert-label">CONTENT<br/>ENGINEERING<br/>CERTIFICATION</div>
+                  <CertSeal />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div ref={mountRef} className="canvas-area"
+          onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} />
+      )}
 
       <aside className="sidebar">
         <div className="sidebar-header">
@@ -300,6 +391,27 @@ export default function App() {
           </>}
 
 
+        </div>
+
+        {/* Certificate */}
+        <div className="sidebar-section">
+          <h3>Certificate</h3>
+          <div className="toggle-row">
+            <span>Cert Mode</span>
+            <button className={`toggle-btn${certMode ? ' active' : ''}`} onClick={() => setCertMode(c => !c)}>
+              <span className="toggle-thumb"/>
+            </button>
+          </div>
+          {certMode && <>
+            <div className="field">
+              <label>Title</label>
+              <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Name</label>
+              <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
+            </div>
+          </>}
         </div>
 
         {/* Interaction */}
