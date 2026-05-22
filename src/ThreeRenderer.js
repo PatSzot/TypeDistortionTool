@@ -93,13 +93,12 @@ const FRAGMENT_SHADER = /* glsl */`
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-// Text canvas: 2:1 aspect, 2× oversample for sharp text
-const TEXT_W = 2048
-const TEXT_H = 1024
+// Text canvas: fixed width, height grows with content
+const TEXT_W   = 2048
+const TEXT_H   = 1024  // minimum height
 
-// Plane: same 2:1 aspect in world units, subdivided heavily for smooth deformation
+// Plane: width fixed in world units, height scales with canvas aspect
 const PLANE_W = 4.0
-const PLANE_H = 2.0
 const SEGS_X  = 300
 const SEGS_Y  = 150
 
@@ -135,8 +134,8 @@ export class ThreeRenderer {
     this.texture.minFilter = THREE.LinearFilter
     this.texture.magFilter = THREE.LinearFilter
 
-    // Plane mesh with wave shader
-    const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_H, SEGS_X, SEGS_Y)
+    // Plane mesh with wave shader — initial 2:1 aspect, resized dynamically
+    const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_W * TEXT_H / TEXT_W, SEGS_X, SEGS_Y)
 
     this.uniforms = {
       uTexture:    { value: this.texture },
@@ -168,14 +167,24 @@ export class ThreeRenderer {
     this._rotStrength = 10               // degrees
   }
 
+  // ── Canvas / plane resize ──────────────────────────────────────────────
+
+  _fitCanvas(neededH) {
+    const h = Math.max(TEXT_H, Math.ceil(neededH))
+    if (this.textCanvas.height === h) return
+    this.textCanvas.height = h
+    // Rebuild plane geometry to match new canvas aspect — prevents texture stretch
+    this.mesh.geometry.dispose()
+    this.mesh.geometry = new THREE.PlaneGeometry(PLANE_W, PLANE_W * h / TEXT_W, SEGS_X, SEGS_Y)
+  }
+
   // ── Text rendering ─────────────────────────────────────────────────────
 
   drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, textAlign = 'center' }) {
 
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
-    const cw     = canvas.width
-    const ch     = canvas.height
+    const cw     = TEXT_W
 
     // 2× oversample: all measurements in canvas pixels = value * 2
     const scale  = 2
@@ -183,19 +192,32 @@ export class ThreeRenderer {
     const trkPx  = tracking * scale
     const lineH  = fSize * leading
 
-    // Clear to transparent — no background box around the text
-    ctx.clearRect(0, 0, cw, ch)
+    if (!phrase.trim()) {
+      this._fitCanvas(TEXT_H)
+      ctx.clearRect(0, 0, cw, canvas.height)
+      this.texture.needsUpdate = true
+      return
+    }
 
-    if (!phrase.trim()) { this.texture.needsUpdate = true; return }
+    // Measure first to know how tall the canvas needs to be
+    ctx.font          = `400 ${fSize}px ${fontFamily}`
+    ctx.letterSpacing = '0px'
+
+    const maxW   = cw * (textWidth / 100)
+    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
+    const totalH = (lines.length - 1) * lineH + fSize
+    const pad    = fSize * 1.5   // vertical breathing room
+
+    this._fitCanvas(totalH + pad * 2)
+
+    const ch     = canvas.height
+    ctx.clearRect(0, 0, cw, ch)
 
     ctx.font          = `400 ${fSize}px ${fontFamily}`
     ctx.letterSpacing = '0px'
     ctx.textBaseline  = 'alphabetic'
     ctx.textAlign     = 'left'
 
-    const maxW   = cw * (textWidth / 100)
-    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
-    const totalH = (lines.length - 1) * lineH + fSize
     const blockY = (ch - totalH) / 2
     const blockX = (cw - maxW) / 2   // left edge of the text block
 
@@ -341,9 +363,8 @@ export class ThreeRenderer {
     }
     const off = this._trendOffscreen
     const ctx = off.getContext('2d')
-    const cw  = off.width, ch = off.height
+    const cw  = off.width
 
-    ctx.clearRect(0, 0, cw, ch)
     const { phrase, fontFamily, fontSize, leading = 1, tracking = 0,
             textColor, textWidth = 90, textAlign = 'center' } = params
     if (!phrase?.trim()) return
@@ -353,14 +374,27 @@ export class ThreeRenderer {
     const trkPx = tracking * scale
     const lineH = fSize * leading
 
+    // Measure to compute required height
+    ctx.font          = `400 ${fSize}px ${fontFamily}`
+    ctx.letterSpacing = '0px'
+
+    const maxW   = cw * (textWidth / 100)
+    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
+    const totalH = (lines.length - 1) * lineH + fSize
+    const pad    = fSize * 1.5
+
+    const ch = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
+    if (off.height !== ch) off.height = ch
+
+    this._fitCanvas(ch)
+
+    ctx.clearRect(0, 0, cw, ch)
+
     ctx.font          = `400 ${fSize}px ${fontFamily}`
     ctx.letterSpacing = '0px'
     ctx.textBaseline  = 'alphabetic'
     ctx.textAlign     = 'left'
 
-    const maxW   = cw * (textWidth / 100)
-    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
-    const totalH = (lines.length - 1) * lineH + fSize
     const blockY = (ch - totalH) / 2
     const blockX = (cw - maxW) / 2
 
