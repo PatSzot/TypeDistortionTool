@@ -97,7 +97,7 @@ const FRAGMENT_SHADER = /* glsl */`
       float edgeDist = abs(vUv.x - uTrendAnimT);
       float falloff  = max(0.0, 1.0 - edgeDist / 0.12);
       falloff = falloff * falloff;
-      float disp = sin(vUv.y * PI * 8.0 - uTrendAnimT * PI * 6.0) * falloff;
+      float disp = sin(vUv.y * PI * 6.0) * falloff;
       vec2 distortedUV = vUv + vec2(disp * uTrendWarp * 0.003, 0.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
