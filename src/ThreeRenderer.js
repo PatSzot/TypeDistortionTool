@@ -119,7 +119,7 @@ export class ThreeRenderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(w, h)
-    this.renderer.setClearColor(0x000000, 1)  // always pure black
+    this.renderer.setClearColor(0x000000, 1)
     this.mount.appendChild(this.renderer.domElement)
 
     this.scene  = new THREE.Scene()
@@ -316,6 +316,10 @@ export class ThreeRenderer {
                               : 0.0
     this._baseRotX = name === 'trend' ? 0.0 : -0.22
     this.mesh.rotation.x = this._baseRotX
+  }
+
+  setBgColor(hex) {
+    this.renderer.setClearColor(new THREE.Color(hex), 1)
   }
 
   setRotationStrength(deg) {

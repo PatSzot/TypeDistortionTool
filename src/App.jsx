@@ -9,6 +9,9 @@ const SANS  = "'Saans', Inter, sans-serif"
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
 const DEFAULT_WAVE     = { height: 26, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
+const EFFECT_LABELS = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
+const EFFECT_BG     = { wave: '#0092FF', polygon: '#000000', trend: '#008C44' }
+
 function ParamSlider({ label, value, min, max, step, unit = '', onChange }) {
   const decimals = step < 1 ? 2 : 0
   return (
@@ -72,7 +75,7 @@ export default function App() {
 
   // Always-current settings snapshot — read in renderer init to avoid stale closures
   const settingsRef = useRef({})
-  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign }
+  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000' }
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
 
@@ -91,6 +94,7 @@ export default function App() {
     // Re-apply all current settings after renderer reinit (e.g. on certMode toggle)
     const s = settingsRef.current
     rend.setEffect(s.effect)
+    rend.setBgColor(s.bgColor)
     rend.setWaveParams(s.wave)
     rend.setRotationStrength(s.rotationStrength)
     if (s.effect === 'trend') {
@@ -154,9 +158,10 @@ export default function App() {
     rendRef.current?.setWaveParams(wave)
   }, [wave])
 
-  // ── Switch effect mode ─────────────────────────────────────────────────
+  // ── Switch effect mode + background color ─────────────────────────────
   useEffect(() => {
     rendRef.current?.setEffect(effect)
+    rendRef.current?.setBgColor(EFFECT_BG[effect] ?? '#000000')
   }, [effect])
 
   // ── Rotation strength ──────────────────────────────────────────────────
@@ -347,9 +352,9 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Effect</h3>
           <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
-            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => setEffect('polygon')}>Polygon</button>
-            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => setEffect('trend')}>Trend</button>
+            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => setEffect('wave')}>{EFFECT_LABELS.wave}</button>
+            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => setEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => setEffect('trend')}>{EFFECT_LABELS.trend}</button>
           </div>
 
           {(effect === 'wave' || effect === 'polygon') && <>
