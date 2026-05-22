@@ -9,7 +9,7 @@ const SANS  = "'Saans', Inter, sans-serif"
 const DEFAULT_WAVE = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
 const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
-const EFFECT_BG        = { wave: '#0092FF', polygon: '#000000', trend: '#008C44' }
+const EFFECT_BG        = { wave: '#0092FF', polygon: '#FCB526', trend: '#008C44' }
 const EFFECT_DEFAULTS  = {
   wave: {
     phrase:    'Reading the field is one half of Content Engineering. Building on it is the other. This certification proves you can find the right problem, design a system that solves it, and explain why it matters to the business.',

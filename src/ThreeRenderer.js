@@ -17,19 +17,20 @@ const VERTEX_SHADER = /* glsl */`
     vUv = uv;
     vec3 pos = position;
 
-    if (uMode < 0.5 || uMode > 1.5) {
+    if (uMode < 0.5) {
+      // Wave: smooth sine driven left-right
       float tiltedX = uv.x + uv.y * 0.1763;  // tan(10°) tilt
       float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float wave    = sin(phase);
+      pos.z += wave * uHeight * 1.6;
+      pos.y += wave * uHeight * 0.45;
+    }
 
-      float wave;
-      if (uMode < 0.5) {
-        // Wave: smooth sine
-        wave = sin(phase);
-      } else {
-        // Polygon: triangle wave — sharp terrain ridges
-        wave = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
-      }
-
+    if (uMode > 1.5) {
+      // Polygon: triangle wave driven top-down
+      float tiltedY = uv.y + uv.x * 0.1763;  // tan(10°) tilt on vertical axis
+      float phase   = tiltedY * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float wave    = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
       pos.z += wave * uHeight * 1.6;
       pos.y += wave * uHeight * 0.45;
     }
@@ -68,15 +69,15 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Polygon: triangle-wave warp ──────────────────────────────────────
+    // ── Polygon: triangle-wave warp top-down ─────────────────────────────
     if (uMode > 1.5) {
-      float tiltedX = vUv.x + vUv.y * 0.1763;
-      float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
-      float dispX   = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
-      float dispY   = sign(sin(phase));
+      float tiltedY = vUv.y + vUv.x * 0.1763;
+      float phase   = tiltedY * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float dispY   = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
+      float dispX   = sign(sin(phase));
       vec2 distortedUV = vUv + vec2(
-        dispX * uWarpAmount * 0.002,
-        dispY * uWarpAmount * 0.0002
+        dispX * uWarpAmount * 0.0002,
+        dispY * uWarpAmount * 0.002
       );
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
