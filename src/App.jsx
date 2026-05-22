@@ -92,6 +92,7 @@ export default function App() {
         phrase, fontFamily, fontSize,
         leading: leading / 100, tracking, textColor, textWidth,
         speed: trendParams.speed,
+        divisions: trendParams.divisions,
       })
       return
     }
