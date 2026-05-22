@@ -303,10 +303,10 @@
 .export-btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #002910;
+  color: #000D05;
 }
 
-.export-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #002910; }
+.export-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #000D05; }
 
 .export-btn small {
   display: block;
@@ -470,7 +470,7 @@
   font-weight: 600;
   font-size: 148px;
   line-height: 0.88;
-  color: #002910;
+  color: #000D05;
   letter-spacing: -4px;
 }
 
@@ -479,7 +479,7 @@
   font-weight: 400;
   font-size: 68px;
   line-height: 1;
-  color: #002910;
+  color: #000D05;
   margin-top: 20px;
   letter-spacing: -1px;
 }
@@ -496,6 +496,6 @@
   font-weight: 500;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #002910;
+  color: #000D05;
   line-height: 1.4;
 }
