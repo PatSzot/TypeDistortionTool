@@ -301,49 +301,59 @@ export class ThreeRenderer {
   }
 
   // ── Trend ───────────────────────────────────────────────────────────────
-  // Draws the phrase as a diagonal trail: repeated lines shifting right and
-  // shrinking from top-left (large/past) to bottom-right (small/now).
-  // The trail marches diagonally — new entries appear at top-left and exit
-  // at bottom-right — giving the sense of a trend continuously advancing.
-  _drawTextTrend({ phrase, fontFamily, fontSize, textColor, speed = 0.5 }, t = 0) {
+  // Kinetic strip animation: the text is sliced into NUM horizontal strips.
+  // Each strip scales in from the right edge (expand) and out to the left
+  // edge (collapse) with a top-to-bottom stagger — replicating the WebGL
+  // Kinetic Typography / GSAP strip effect entirely in Canvas 2D.
+  _drawTextTrend({ speed = 0.5 }, t = 0) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = canvas.width   // 2048
     const ch     = canvas.height  // 1024
 
     ctx.clearRect(0, 0, cw, ch)
-    if (!phrase.trim()) { this.texture.needsUpdate = true; return }
+    if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
-    const ROWS = 26
+    const NUM  = 40
+    const sH   = ch / NUM
+    const STAG = 0.015 / speed   // stagger between strips
+    const DUR  = 0.8   / speed   // duration per strip
+    const HOLD = 0.5   / speed   // hold between in and out phases
+    const phaseLen = DUR + (NUM - 1) * STAG  // time until all strips finish
+    const cycle    = 2 * phaseLen + 2 * HOLD
+    const tMod     = t % cycle
 
-    // Trail bounding box (canvas px)
-    const yFrom = ch * 0.04,  yTo = ch * 0.96
-    const xFrom = cw * 0.01,  xTo = cw * 0.70
+    // power3.inOut (matches GSAP default used in the CodePen)
+    const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    const yStep = (yTo - yFrom) / (ROWS - 1)
-    const xStep = (xTo - xFrom) / (ROWS - 1)
+    for (let i = 0; i < NUM; i++) {
+      const delay = i * STAG
+      let   sx    = 0
+      let   pivX  = cw   // entry pivot: right edge  (text expands from right)
 
-    // Font sizes: large at top-left, small at bottom-right
-    const scale    = 2
-    const maxFont  = fontSize * scale * 1.5
-    const minFont  = fontSize * scale * 0.2
+      if (tMod < phaseLen) {
+        // Entering — expand from right edge
+        sx = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
+      } else if (tMod < phaseLen + HOLD) {
+        sx = 1
+      } else if (tMod < 2 * phaseLen + HOLD) {
+        // Exiting — collapse to left edge
+        pivX = 0
+        sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - HOLD - delay) / DUR)))
+      }
+      // else: pause phase, sx = 0 — skip
 
-    // Diagonal scroll: period = 2 / speed seconds
-    const scrollY  = (t * speed * yStep * 0.5) % yStep
-    const scrollX  = scrollY * (xStep / yStep)   // keeps motion on the trend axis
+      if (sx <= 0.001) continue
 
-    ctx.textBaseline = 'alphabetic'
-    ctx.textAlign    = 'left'
-
-    for (let i = -2; i < ROWS + 2; i++) {
-      const progress = i / (ROWS - 1)
-      const fontPx   = Math.max(minFont, Math.round(maxFont + (minFont - maxFont) * progress))
-      const x        = xFrom + i * xStep + scrollX
-      const y        = yFrom + i * yStep + scrollY
-
-      ctx.font      = `700 ${fontPx}px ${fontFamily}`
-      ctx.fillStyle = textColor
-      ctx.fillText(phrase.trim(), x, y)
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, i * sH, cw, sH)
+      ctx.clip()
+      ctx.translate(pivX, 0)
+      ctx.scale(sx, 1)
+      ctx.translate(-pivX, 0)
+      ctx.drawImage(this._trendOffscreen, 0, 0)
+      ctx.restore()
     }
 
     this.texture.needsUpdate = true
@@ -390,6 +400,28 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
+    // Pre-render text once to an offscreen canvas; redrawn only on settings change
+    if (!this._trendOffscreen) {
+      this._trendOffscreen        = document.createElement('canvas')
+      this._trendOffscreen.width  = 2048
+      this._trendOffscreen.height = 1024
+    }
+    const off = this._trendOffscreen
+    const ctx = off.getContext('2d')
+    ctx.clearRect(0, 0, off.width, off.height)
+    if (!params.phrase?.trim()) return
+
+    // Auto-fit: scale font size so text spans ~85% of canvas width
+    let fSize = Math.max(80, params.fontSize * 2 * 2)
+    ctx.font = `700 ${fSize}px ${params.fontFamily}`
+    const tw = ctx.measureText(params.phrase.trim()).width
+    if (tw > off.width * 0.85) fSize *= (off.width * 0.85) / tw
+
+    ctx.font         = `700 ${Math.round(fSize)}px ${params.fontFamily}`
+    ctx.fillStyle    = params.textColor
+    ctx.textAlign    = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(params.phrase.trim(), off.width / 2, off.height / 2)
   }
 
   setKaleidoscopeParams({ speed, zoom, radius, innerR }) {
