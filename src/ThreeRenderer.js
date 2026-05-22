@@ -301,9 +301,10 @@ export class ThreeRenderer {
   }
 
   // ── Trend ───────────────────────────────────────────────────────────────
-  // Kinetic strip animation. Strips enter top-to-bottom, exit bottom-to-top,
-  // both pivoting on the right edge — so every strip starts and ends at sx=0
-  // from the same anchor, making the cycle perfectly seamless with no blank.
+  // Two passes offset by phaseLen so one is always entering while the other
+  // exits. Entering strips expand from the LEFT edge; exiting strips collapse
+  // toward the RIGHT edge — they occupy complementary halves of each strip,
+  // guaranteeing no blank frame anywhere in the loop.
   _drawTextTrend({ speed = 0.5 }, t = 0) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
@@ -317,37 +318,43 @@ export class ThreeRenderer {
     const sH       = ch / NUM
     const STAG     = 0.015 / speed
     const DUR      = 0.8   / speed
-    const phaseLen = DUR + (NUM - 1) * STAG   // time for all strips to complete one phase
-    const cycle    = 2 * phaseLen             // enter + exit, no hold or pause
-    const tMod     = t % cycle
+    const phaseLen = DUR + (NUM - 1) * STAG
+    const cycle    = 2 * phaseLen
 
-    // power3.inOut — matches GSAP easing used in the original CodePen
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    for (let i = 0; i < NUM; i++) {
-      let sx
+    // Draw entering pass first (behind), exiting pass second (in front)
+    for (let pass = 0; pass < 2; pass++) {
+      const tMod    = (t + pass * phaseLen) % cycle
+      const entering = tMod < phaseLen
 
-      if (tMod < phaseLen) {
-        // Entering: top-to-bottom stagger
-        const delay = i * STAG
-        sx = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
-      } else {
-        // Exiting: bottom-to-top stagger (reverse order)
-        const delay = (NUM - 1 - i) * STAG
-        sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
+      for (let i = 0; i < NUM; i++) {
+        let sx, pivX
+
+        if (entering) {
+          // Top-to-bottom stagger, expand from left edge
+          const delay = i * STAG
+          sx   = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
+          pivX = 0
+        } else {
+          // Bottom-to-top stagger, collapse toward right edge
+          const delay = (NUM - 1 - i) * STAG
+          sx   = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
+          pivX = cw
+        }
+
+        if (sx <= 0.001) continue
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, i * sH, cw, sH)
+        ctx.clip()
+        ctx.translate(pivX, 0)
+        ctx.scale(sx, 1)
+        ctx.translate(-pivX, 0)
+        ctx.drawImage(this._trendOffscreen, 0, 0)
+        ctx.restore()
       }
-
-      if (sx <= 0.001) continue
-
-      ctx.save()
-      ctx.beginPath()
-      ctx.rect(0, i * sH, cw, sH)
-      ctx.clip()
-      ctx.translate(cw, 0)   // pivot: right edge for both enter and exit
-      ctx.scale(sx, 1)
-      ctx.translate(-cw, 0)
-      ctx.drawImage(this._trendOffscreen, 0, 0)
-      ctx.restore()
     }
 
     this.texture.needsUpdate = true
