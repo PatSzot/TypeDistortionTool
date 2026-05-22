@@ -98,7 +98,7 @@ const FRAGMENT_SHADER = /* glsl */`
       float fA = max(0.0, 1.0 - dA / 0.12); fA *= fA;
       float dB = abs(vUv.x - uTrendEdgeB);
       float fB = max(0.0, 1.0 - dB / 0.12); fB *= fB;
-      float disp = sin(vUv.y * PI * 6.0) * (fA + fB);
+      float disp = sin(vUv.y * PI * 6.0) * max(fA, fB);
       vec2 distortedUV = vUv + vec2(disp * uTrendWarp * 0.003, 0.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
@@ -337,25 +337,11 @@ export class ThreeRenderer {
 
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    // Both entering and exiting edges sweep left-to-right (0→1):
-    //   Entering: right edge of revealed content = sx (expands 0→1 from left)
-    //   Exiting:  left edge of collapsed content = 1-sx (advances 0→1 rightward)
-    // Use the median strip as a representative for each pass.
-    const _edgeX = (tMod, entering) => {
-      const midI = Math.floor(NUM / 2)
-      if (entering) {
-        const delay = midI * STAG
-        return ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
-      } else {
-        const delay = (NUM - 1 - midI) * STAG
-        const sx = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
-        return 1 - sx   // left boundary of shrinking strip = moves 0→1
-      }
-    }
-    const tMod0 = t % cycle
-    const tMod1 = (t + phaseLen) % cycle
-    this.uniforms.uTrendEdgeA.value = _edgeX(tMod0, tMod0 < phaseLen)
-    this.uniforms.uTrendEdgeB.value = _edgeX(tMod1, tMod1 < phaseLen)
+    // Single eased 0→1 sweep per phaseLen, shared by both passes so the two
+    // warp bands are always identical — no seam or glitch at the loop point.
+    const edgeX = ease((t % phaseLen) / phaseLen)
+    this.uniforms.uTrendEdgeA.value = edgeX
+    this.uniforms.uTrendEdgeB.value = edgeX
 
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
