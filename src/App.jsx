@@ -52,7 +52,6 @@ export default function App() {
   const [textColor, setTextColor] = useState('#ffffff')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
-  const [kParams,      setKParams]      = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
   const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12, warpAmount: 10 })
   const [rotationStrength, setRotationStrength] = useState(26)
   const [playing,   setPlaying]   = useState(true)
@@ -97,14 +96,11 @@ export default function App() {
       })
       return
     }
-    const arcMode   = effect === 'kaleidoscope'
-    const arcRadius = arcMode ? (kParams.radius / 100) / kParams.zoom : undefined
     rendRef.current?.drawText({
       phrase, fontFamily, fontSize,
       leading: leading / 100, tracking, textColor, textWidth,
-      arcMode, arcRadius,
     })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, kParams, trendParams])
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, trendParams])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -120,16 +116,6 @@ export default function App() {
   useEffect(() => {
     rendRef.current?.setRotationStrength(rotationStrength)
   }, [rotationStrength])
-
-  // ── Kaleidoscope params ────────────────────────────────────────────────
-  useEffect(() => {
-    rendRef.current?.setKaleidoscopeParams({
-      speed:  kParams.speed,
-      zoom:   kParams.zoom,
-      radius: kParams.radius / 100,
-      innerR: kParams.innerR / 100,
-    })
-  }, [kParams])
 
   // ── Animation loop ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -202,7 +188,6 @@ export default function App() {
   }
 
   const setWaveParam  = (key, val) => setWave(w => ({ ...w, [key]: val }))
-  const setKParam     = (key, val) => setKParams(k => ({ ...k, [key]: val }))
   const setTrendParam = (key, val) => setTrendParams(p => ({ ...p, [key]: val }))
 
   // ── Seamless loop duration ─────────────────────────────────────────────
@@ -226,10 +211,7 @@ export default function App() {
       const phaseLen = 0.8 / s + (trendParams.divisions - 1) * 0.015 / s
       return 2 * phaseLen
     } else {
-      const s = kParams.speed
-      if (s <= 0) return TARGET
-      const k = Math.max(1, Math.round(TARGET * s * 6))
-      return k / (s * 6)
+      return TARGET
     }
   })()
 
@@ -295,10 +277,9 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Effect</h3>
           <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'         ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
-            <button className={`seg-btn${effect === 'polygon'      ? ' active' : ''}`} onClick={() => setEffect('polygon')}>Polygon</button>
-            <button className={`seg-btn${effect === 'kaleidoscope' ? ' active' : ''}`} onClick={() => setEffect('kaleidoscope')}>Kaleidoscope</button>
-            <button className={`seg-btn${effect === 'trend'        ? ' active' : ''}`} onClick={() => setEffect('trend')}>Trend</button>
+            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => setEffect('wave')}>Wave</button>
+            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => setEffect('polygon')}>Polygon</button>
+            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => setEffect('trend')}>Trend</button>
           </div>
 
           {(effect === 'wave' || effect === 'polygon') && <>
@@ -314,12 +295,7 @@ export default function App() {
             <ParamSlider label="Warp"      value={trendParams.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setTrendParam('warpAmount', v)} />
           </>}
 
-          {effect === 'kaleidoscope' && <>
-            <ParamSlider label="Speed"   value={kParams.speed}  min={0}   max={1}  step={0.01} unit="%" onChange={v => setKParam('speed', v)}  />
-            <ParamSlider label="Zoom"    value={kParams.zoom}   min={0.1} max={2}  step={0.05} unit="%" onChange={v => setKParam('zoom', v)}   />
-            <ParamSlider label="Radius"  value={kParams.radius} min={10}  max={200} step={1}    unit="%" onChange={v => setKParam('radius', v)} />
-            <ParamSlider label="Void"    value={kParams.innerR} min={0}   max={40} step={1}    unit="%" onChange={v => setKParam('innerR', v)} />
-          </>}
+
         </div>
 
         {/* Interaction */}

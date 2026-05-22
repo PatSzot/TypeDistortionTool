@@ -7,7 +7,7 @@ const VERTEX_SHADER = /* glsl */`
   uniform float uHeight;
   uniform float uSpeed;
   uniform float uFrequency;
-  uniform float uMode;    // 0 = wave, 1 = kaleidoscope, 2 = trend, 3 = polygon
+  uniform float uMode;    // 0 = wave, 1 = trend, 2 = polygon
 
   varying vec2 vUv;
 
@@ -17,7 +17,7 @@ const VERTEX_SHADER = /* glsl */`
     vUv = uv;
     vec3 pos = position;
 
-    if (uMode < 0.5 || uMode > 2.5) {
+    if (uMode < 0.5 || uMode > 1.5) {
       float tiltedX = uv.x + uv.y * 0.1763;  // tan(10°) tilt
       float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
 
@@ -27,7 +27,6 @@ const VERTEX_SHADER = /* glsl */`
         wave = sin(phase);
       } else {
         // Polygon: triangle wave — sharp terrain ridges
-        // abs(mod(phase/PI, 2) - 1) * 2 - 1  maps 0→1→-1→1 in a V pattern
         wave = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
       }
 
@@ -46,10 +45,6 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uSpeed;
   uniform float uFrequency;
   uniform float uWarpAmount;
-  uniform float uKSpeed;
-  uniform float uKZoom;
-  uniform float uKRadius;
-  uniform float uKInnerR;
   uniform float uTrendWarp;
   uniform float uTrendEdgeA;  // 0→1 left-to-right edge for pass 0
   uniform float uTrendEdgeB;  // 0→1 left-to-right edge for pass 1
@@ -77,11 +72,11 @@ const FRAGMENT_SHADER = /* glsl */`
     }
 
     // ── Polygon: triangle-wave warp ──────────────────────────────────────
-    if (uMode > 2.5) {
+    if (uMode > 1.5) {
       float tiltedX = vUv.x + vUv.y * 0.1763;
       float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
-      float dispX   = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;  // triangle
-      float dispY   = sign(sin(phase));                                // sharp step Y
+      float dispX   = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
+      float dispY   = sign(sin(phase));
       vec2 distortedUV = vUv + vec2(
         dispX * uWarpAmount * 0.002,
         dispY * uWarpAmount * 0.0002
@@ -93,7 +88,7 @@ const FRAGMENT_SHADER = /* glsl */`
     // ── Trend: edge-localised warp ────────────────────────────────────────
     // Two independent edges (A = pass 0, B = pass 1), both sweeping 0→1.
     // Warp is a fixed Y-sine band localised near each edge — no back-and-forth.
-    if (uMode >= 1.5) {
+    if (uMode >= 0.5) {
       float dA = abs(vUv.x - uTrendEdgeA);
       float fA = max(0.0, 1.0 - dA / 0.12); fA *= fA;
       float dB = abs(vUv.x - uTrendEdgeB);
@@ -104,35 +99,6 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // Screen-square coordinates: x × 2 to account for 2:1 plane aspect
-    vec2 ps = (vUv - 0.5) * vec2(2.0, 1.0);
-
-    // ── Hexagram clip ────────────────────────────────────────────────────
-    // Union of two equilateral triangles (circumradius = uKRadius):
-    //   T1 points up  — tip at (0, +R)
-    //   T2 points down — tip at (0, −R)
-    float R = uKRadius;
-    bool inT1 = ps.y >= -R * 0.5 && sqrt(3.0) * abs(ps.x) + ps.y <= R;
-    bool inT2 = ps.y <=  R * 0.5 && sqrt(3.0) * abs(ps.x) - ps.y <= R;
-    if (!inT1 && !inT2) { gl_FragColor = vec4(0.0); return; }
-
-    // ── Inner void ───────────────────────────────────────────────────────
-    if (length(ps) < uKInnerR) { gl_FragColor = vec4(0.0); return; }
-
-    // ── Polar fold — spinning rotation over time ─────────────────────────
-    float r     = length(ps) / uKZoom;
-    float theta = atan(ps.y, ps.x) + uTime * uKSpeed * PI * 2.0;
-
-    // Fold into one 60-degree segment, then mirror → 6 symmetric slices
-    float seg = PI / 3.0;
-    theta = mod(theta, seg);
-    if (theta > seg * 0.5) theta = seg - theta;
-
-    // Reconstruct and convert back to UV space (fract tiles the texture)
-    vec2 q  = vec2(cos(theta), sin(theta)) * r;
-    vec2 uv = fract(q / vec2(2.0, 1.0) + 0.5);
-
-    gl_FragColor = texture2D(uTexture, uv);
   }
 `
 
@@ -191,10 +157,6 @@ export class ThreeRenderer {
       uFrequency:  { value: 1.0 },
       uWarpAmount: { value: 10.0 },
       uMode:       { value: 0.0 },
-      uKSpeed:     { value: 0.05 },
-      uKZoom:      { value: 0.4 },
-      uKRadius:    { value: 0.42 },
-      uKInnerR:    { value: 0.13 },
       uTrendWarp:  { value: 10.0 },
       uTrendEdgeA: { value: -1.0 },
       uTrendEdgeB: { value: -1.0 },
@@ -222,8 +184,7 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, arcMode = false, arcRadius = 0.28 }) {
-    if (arcMode) return this._drawTextTile({ phrase, fontFamily, fontSize, textColor })
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90 }) {
 
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
@@ -273,44 +234,6 @@ export class ThreeRenderer {
       })
     })
 
-    this.texture.needsUpdate = true
-  }
-
-  // ── Tiled text (kaleidoscope mode) ────────────────────────────────────
-  // Fills the whole canvas with brick-offset rows of the phrase.
-  // The kaleidoscope's 6-fold polar fold then transforms these horizontal
-  // rows into diagonal bands — one set per star sector — matching the
-  // reference hexagram look.
-  _drawTextTile({ phrase, fontFamily, fontSize, textColor }) {
-    const canvas = this.textCanvas
-    const ctx    = canvas.getContext('2d')
-    const cw = canvas.width, ch = canvas.height
-    ctx.clearRect(0, 0, cw, ch)
-    if (!phrase.trim()) { this.texture.needsUpdate = true; return }
-
-    const fSize = fontSize * 2          // 2× oversample
-    const lineH = fSize * 1.15          // tight rows → denser star fill
-
-    ctx.font          = `400 ${fSize}px ${fontFamily}`
-    ctx.fillStyle     = textColor
-    ctx.textBaseline  = 'alphabetic'
-    ctx.textAlign     = 'left'
-    ctx.letterSpacing = '0px'
-
-    // Single tile = phrase + word-spacing gap
-    const tile  = phrase.trim() + '   '
-    const tileW = ctx.measureText(tile).width
-
-    for (let row = 0; row * lineH < ch + lineH; row++) {
-      const y      = row * lineH + fSize * 0.8
-      const xShift = (row % 2) * (tileW / 2)   // brick-pattern half-offset
-
-      for (let x = -tileW + xShift; x < cw + tileW; x += tileW) {
-        ctx.fillText(tile, x, y)
-      }
-    }
-
-    this.charPositions = []
     this.texture.needsUpdate = true
   }
 
@@ -407,11 +330,10 @@ export class ThreeRenderer {
 
   setEffect(name) {
     this._currentEffect = name
-    this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0
-                              : name === 'trend'        ? 2.0
-                              : name === 'polygon'      ? 3.0
+    this.uniforms.uMode.value = name === 'trend'   ? 1.0
+                              : name === 'polygon' ? 2.0
                               : 0.0
-    this._baseRotX = (name === 'kaleidoscope' || name === 'trend') ? 0.0 : -0.22
+    this._baseRotX = name === 'trend' ? 0.0 : -0.22
     this.mesh.rotation.x = this._baseRotX
   }
 
@@ -466,13 +388,6 @@ export class ThreeRenderer {
         curX += widths[ci] + trkPx
       })
     })
-  }
-
-  setKaleidoscopeParams({ speed, zoom, radius, innerR }) {
-    this.uniforms.uKSpeed.value  = speed
-    this.uniforms.uKZoom.value   = zoom
-    this.uniforms.uKRadius.value = radius
-    this.uniforms.uKInnerR.value = innerR
   }
 
   // ── Wave params ────────────────────────────────────────────────────────
