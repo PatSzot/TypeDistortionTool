@@ -67,7 +67,7 @@ export default function App() {
   const [exportPhase,  setExportPhase]  = useState('')
   const [fontsReady, setFontsReady] = useState(false)
 
-  const [certMode,  setCertMode]  = useState(false)
+  const [certMode,  setCertMode]  = useState(true)
   const [certTitle, setCertTitle] = useState('AEO Analyst')
   const [certName,  setCertName]  = useState('Ariana Opera')
   const [certZoom,  setCertZoom]  = useState(1)
@@ -316,6 +316,27 @@ export default function App() {
           <span>Type</span>
         </div>
 
+        {/* Certificate */}
+        <div className="sidebar-section">
+          <h3>Certificate</h3>
+          <div className="toggle-row">
+            <span>Cert Mode</span>
+            <button className={`toggle-btn${certMode ? ' active' : ''}`} onClick={() => setCertMode(c => !c)}>
+              <span className="toggle-thumb"/>
+            </button>
+          </div>
+          {certMode && <>
+            <div className="field">
+              <label>Title</label>
+              <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Name</label>
+              <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
+            </div>
+          </>}
+        </div>
+
         {/* Phrase */}
         <div className="sidebar-section">
           <h3>Phrase</h3>
@@ -388,27 +409,6 @@ export default function App() {
           </>}
 
 
-        </div>
-
-        {/* Certificate */}
-        <div className="sidebar-section">
-          <h3>Certificate</h3>
-          <div className="toggle-row">
-            <span>Cert Mode</span>
-            <button className={`toggle-btn${certMode ? ' active' : ''}`} onClick={() => setCertMode(c => !c)}>
-              <span className="toggle-thumb"/>
-            </button>
-          </div>
-          {certMode && <>
-            <div className="field">
-              <label>Title</label>
-              <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)} />
-            </div>
-            <div className="field">
-              <label>Name</label>
-              <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
-            </div>
-          </>}
         </div>
 
         {/* Interaction */}
