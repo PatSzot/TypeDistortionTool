@@ -73,6 +73,12 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
+    // ── Distort B: flat passthrough (animation is purely on the 2D canvas) ──
+    if (uMode >= 0.5 && uMode <= 1.5) {
+      gl_FragColor = texture2D(uTexture, vUv);
+      return;
+    }
+
     // ── Polygon: dual-axis triangle warp → fractal grid ──────────────────
     if (uMode > 1.5) {
       float tiltedY = vUv.y + vUv.x * 0.1763;
@@ -305,7 +311,9 @@ export class ThreeRenderer {
 
   setEffect(name) {
     this._currentEffect = name
-    this.uniforms.uMode.value = name === 'polygon' ? 2.0 : 0.0
+    this.uniforms.uMode.value = name === 'polygon'  ? 2.0
+                              : name === 'distortB' ? 1.0
+                              : 0.0
     this._baseRotX = -0.22
     this.mesh.rotation.x = this._baseRotX
   }
@@ -320,6 +328,46 @@ export class ThreeRenderer {
 
   setRotationStrength(deg) {
     this._rotStrength = deg
+  }
+
+  // ── Distort B ──────────────────────────────────────────────────────────
+  // Character-level glitch: every ~100 ms, replace 1 random non-space char
+  // with a random glyph from the charset.  After 2 replacements, reset to
+  // the original phrase and repeat — matching the jQuery reference behaviour.
+
+  setDistortParams(params) {
+    this._distortParams = params
+    this._distortBase   = params.phrase
+    this._distortStr    = params.phrase
+    this._distortRuns   = 0
+    this._distortLastT  = null
+    this.drawText(params)
+  }
+
+  _drawTextDistort(t) {
+    const INTERVAL = 0.1   // seconds between character swaps
+    const CHARSET  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890+>?-$#@%&*'
+
+    if (this._distortLastT === null) { this._distortLastT = t; return }
+    if (t - this._distortLastT < INTERVAL) return
+    this._distortLastT = t
+
+    if (this._distortRuns >= 2) {
+      // Reset to original then start a new cycle
+      this._distortStr  = this._distortBase
+      this._distortRuns = 0
+    } else {
+      const chars      = [...this._distortStr]
+      const candidates = chars.reduce((a, c, i) => (c !== ' ' ? [...a, i] : a), [])
+      if (candidates.length) {
+        const pos   = candidates[Math.floor(Math.random() * candidates.length)]
+        chars[pos]  = CHARSET[Math.floor(Math.random() * CHARSET.length)]
+        this._distortStr  = chars.join('')
+        this._distortRuns++
+      }
+    }
+
+    this.drawText({ ...this._distortParams, phrase: this._distortStr })
   }
 
   // ── Wave params ────────────────────────────────────────────────────────
@@ -347,6 +395,9 @@ export class ThreeRenderer {
     this.mesh.rotation.y  =  this._ptr.x * maxRad
     this.mesh.rotation.x  =  this._baseRotX - this._ptr.y * maxRad * 0.6
 
+    if (this._currentEffect === 'distortB' && this._distortParams) {
+      this._drawTextDistort(t)
+    }
     this.uniforms.uTime.value = t
     this.renderer.render(this.scene, this.camera)
   }

@@ -8,8 +8,8 @@ const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_WAVE = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
-const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'AEO Analyst' }
-const EFFECT_BG        = { wave: '#0092FF', polygon: '#FCB526' }
+const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'AEO Analyst', distortB: 'AEO Analyst B' }
+const EFFECT_BG        = { wave: '#0092FF', polygon: '#FCB526', distortB: '#FCB526' }
 const EFFECT_DEFAULTS  = {
   wave: {
     phrase:    'Reading the field is one half of Content Engineering. Building on it is the other. This certification proves you can find the right problem, design a system that solves it, and explain why it matters to the business.',
@@ -18,6 +18,10 @@ const EFFECT_DEFAULTS  = {
   polygon: {
     phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
     certTitle: 'AEO Analyst',
+  },
+  distortB: {
+    phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
+    certTitle: 'AEO Analyst B',
   },
 }
 
@@ -111,11 +115,16 @@ export default function App() {
     rend.setZoom(s.certZoom)
     rend.setWaveParams(s.wave)
     rend.setRotationStrength(s.rotationStrength)
-    rend.drawText({
+    const textArgs = {
       phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
       leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
       textWidth: s.textWidth, textAlign: s.textAlign,
-    })
+    }
+    if (s.effect === 'distortB') {
+      rend.setDistortParams(textArgs)
+    } else {
+      rend.drawText(textArgs)
+    }
 
     const ro = new ResizeObserver(() => {
       rend.resize(mount.clientWidth, mount.clientHeight)
@@ -150,10 +159,12 @@ export default function App() {
     const fontName = fontFamily.split(',')[0].trim()   // e.g. 'Serrif VF' or 'Saans'
     document.fonts.load(`400 1em ${fontName}`).then(() => {
       if (cancelled) return
-      rendRef.current?.drawText({
-        phrase, fontFamily, fontSize,
-        leading: leading / 100, tracking, textColor, textWidth, textAlign,
-      })
+      const args = { phrase, fontFamily, fontSize, leading: leading / 100, tracking, textColor, textWidth, textAlign }
+      if (effect === 'distortB') {
+        rendRef.current?.setDistortParams(args)
+      } else {
+        rendRef.current?.drawText(args)
+      }
     })
     return () => { cancelled = true }
   }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, textAlign, fontsReady, effect])
@@ -329,8 +340,9 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Certificate Type</h3>
           <div className="seg-toggle">
-            <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
-            <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+            <button className={`seg-btn${effect === 'wave'     ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
+            <button className={`seg-btn${effect === 'polygon'  ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
+            <button className={`seg-btn${effect === 'distortB' ? ' active' : ''}`} onClick={() => switchEffect('distortB')}>{EFFECT_LABELS.distortB}</button>
           </div>
         </div>
 

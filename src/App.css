@@ -178,7 +178,7 @@
   border-radius: 0;
 }
 
-.seg-btn:first-child { border-right: 1px solid var(--border); }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
 
 .seg-btn.active {
   background: var(--border);
