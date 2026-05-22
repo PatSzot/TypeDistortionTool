@@ -153,19 +153,28 @@ export default function App() {
 
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
-    if (effect === 'trend') {
-      rendRef.current?.setTrendParams({
+    let cancelled = false
+    // Explicitly load the active font before drawing — canvas ctx.font silently
+    // ignores a font that the browser hasn't confirmed is ready for canvas use,
+    // which causes the previous font to stick (e.g. Saans stays after switching to Serrif).
+    const fontName = fontFamily.split(',')[0].trim()   // e.g. 'Serrif VF' or 'Saans'
+    document.fonts.load(`400 1em ${fontName}`).then(() => {
+      if (cancelled) return
+      if (effect === 'trend') {
+        rendRef.current?.setTrendParams({
+          phrase, fontFamily, fontSize,
+          leading: leading / 100, tracking, textColor, textWidth, textAlign,
+          speed: trendParams.speed,
+          divisions: trendParams.divisions,
+        })
+        return
+      }
+      rendRef.current?.drawText({
         phrase, fontFamily, fontSize,
         leading: leading / 100, tracking, textColor, textWidth, textAlign,
-        speed: trendParams.speed,
-        divisions: trendParams.divisions,
       })
-      return
-    }
-    rendRef.current?.drawText({
-      phrase, fontFamily, fontSize,
-      leading: leading / 100, tracking, textColor, textWidth, textAlign,
     })
+    return () => { cancelled = true }
   }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, textAlign, fontsReady, effect, trendParams])
 
   // ── Update wave uniforms whenever params change ────────────────────────
