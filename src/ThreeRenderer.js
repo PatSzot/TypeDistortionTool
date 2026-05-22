@@ -168,29 +168,42 @@ export class ThreeRenderer {
   }
 
   // ── Canvas / plane resize ──────────────────────────────────────────────
+  // Returns true if the canvas was actually resized.
 
   _fitCanvas(neededH) {
     const h = Math.max(TEXT_H, Math.ceil(neededH))
-    if (this.textCanvas.height === h) return
+    if (this.textCanvas.height === h) return false
     this.textCanvas.height = h
+    // Re-assign texture.image so Three.js re-reads the canvas dimensions on
+    // next upload — setting needsUpdate alone does not trigger a dimension update.
+    this.texture.image = this.textCanvas
     // Rebuild plane geometry to match new canvas aspect — prevents texture stretch
     this.mesh.geometry.dispose()
     this.mesh.geometry = new THREE.PlaneGeometry(PLANE_W, PLANE_W * h / TEXT_W, SEGS_X, SEGS_Y)
+    return true
   }
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
   drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, textAlign = 'center' }) {
-
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = TEXT_W
 
-    // 2× oversample: all measurements in canvas pixels = value * 2
-    const scale  = 2
-    const fSize  = fontSize * scale
-    const trkPx  = tracking * scale
-    const lineH  = fSize * leading
+    // 2× oversample: CSS px values become canvas px
+    const fSize = fontSize * 2
+    const trkPx = tracking * 2
+    const lineH = fSize * leading
+
+    // Helper: apply all context state in one place so a canvas resize never
+    // leaves us with stale defaults.
+    const applyCtxState = () => {
+      ctx.font          = `400 ${fSize}px ${fontFamily}`
+      ctx.letterSpacing = '0px'
+      ctx.textBaseline  = 'alphabetic'
+      ctx.textAlign     = 'left'
+      ctx.fillStyle     = textColor
+    }
 
     if (!phrase.trim()) {
       this._fitCanvas(TEXT_H)
@@ -199,29 +212,22 @@ export class ThreeRenderer {
       return
     }
 
-    // Measure first to know how tall the canvas needs to be
-    ctx.font          = `400 ${fSize}px ${fontFamily}`
-    ctx.letterSpacing = '0px'
-
+    // Measure with correct font before deciding canvas height
+    applyCtxState()
     const maxW   = cw * (textWidth / 100)
     const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
     const totalH = (lines.length - 1) * lineH + fSize
-    const pad    = fSize * 1.5   // vertical breathing room
+    const pad    = fSize * 1.5
 
-    this._fitCanvas(totalH + pad * 2)
+    // Resize canvas (and plane geometry) if needed; re-apply state if it reset
+    if (this._fitCanvas(totalH + pad * 2)) applyCtxState()
 
-    const ch     = canvas.height
+    const ch = canvas.height
     ctx.clearRect(0, 0, cw, ch)
 
-    ctx.font          = `400 ${fSize}px ${fontFamily}`
-    ctx.letterSpacing = '0px'
-    ctx.textBaseline  = 'alphabetic'
-    ctx.textAlign     = 'left'
-
     const blockY = (ch - totalH) / 2
-    const blockX = (cw - maxW) / 2   // left edge of the text block
+    const blockX = (cw - maxW) / 2
 
-    ctx.fillStyle = textColor
     this.charPositions = []
 
     lines.forEach((line, li) => {
@@ -232,7 +238,6 @@ export class ThreeRenderer {
       const widths = chars.map(c => ctx.measureText(c).width)
 
       chars.forEach((char, ci) => {
-        // Store centre-ish position (canvas px) for Lottie export
         this.charPositions.push({
           char,
           x: curX + widths[ci] / 2,
@@ -369,36 +374,34 @@ export class ThreeRenderer {
             textColor, textWidth = 90, textAlign = 'center' } = params
     if (!phrase?.trim()) return
 
-    const scale = 2
-    const fSize = fontSize * scale
-    const trkPx = tracking * scale
+    const fSize = fontSize * 2
+    const trkPx = tracking * 2
     const lineH = fSize * leading
 
-    // Measure to compute required height
-    ctx.font          = `400 ${fSize}px ${fontFamily}`
-    ctx.letterSpacing = '0px'
+    const applyCtxState = () => {
+      ctx.font          = `400 ${fSize}px ${fontFamily}`
+      ctx.letterSpacing = '0px'
+      ctx.textBaseline  = 'alphabetic'
+      ctx.textAlign     = 'left'
+      ctx.fillStyle     = textColor
+    }
+
+    applyCtxState()
 
     const maxW   = cw * (textWidth / 100)
     const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
     const totalH = (lines.length - 1) * lineH + fSize
     const pad    = fSize * 1.5
+    const ch     = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
 
-    const ch = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
+    // Keep offscreen canvas in sync with main canvas dimensions
     if (off.height !== ch) off.height = ch
-
-    this._fitCanvas(ch)
+    if (this._fitCanvas(ch)) applyCtxState()
 
     ctx.clearRect(0, 0, cw, ch)
 
-    ctx.font          = `400 ${fSize}px ${fontFamily}`
-    ctx.letterSpacing = '0px'
-    ctx.textBaseline  = 'alphabetic'
-    ctx.textAlign     = 'left'
-
     const blockY = (ch - totalH) / 2
     const blockX = (cw - maxW) / 2
-
-    ctx.fillStyle = textColor
 
     lines.forEach((line, li) => {
       const chars  = [...line]
@@ -411,6 +414,9 @@ export class ThreeRenderer {
         curX += widths[ci] + trkPx
       })
     })
+
+    // Trigger immediate texture update (don't wait for next tick)
+    this.texture.needsUpdate = true
   }
 
   // ── Wave params ────────────────────────────────────────────────────────

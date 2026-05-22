@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import './App.css'
 import { ThreeRenderer } from './ThreeRenderer.js'
 import { exportMP4, exportGIF, exportLottie } from './export.js'
@@ -250,12 +250,9 @@ export default function App() {
   const setTrendParam = (key, val) => setTrendParams(p => ({ ...p, [key]: val }))
 
   // ── Seamless loop duration ─────────────────────────────────────────────
-  // Returns the shortest duration ≥ ~3s where the animation returns exactly
-  // to its starting state (whole number of cycles).
-  //
-  // Wave: repeats every 1/speed seconds  →  T = ceil(3·speed)/speed
-  // Kaleidoscope: 6-fold symmetry means it repeats every 1/(6·kSpeed) sec
-  //               →  T = ceil(3·6·kSpeed)/(6·kSpeed)
+  // Shortest T ≥ 3s where the animation returns to its exact start state.
+  // Wave/Polygon: period = 1/speed  →  T = ceil(3·speed)/speed
+  // Trend: period = 2·phaseLen (two-pass cycle)
   const seamlessLoopDuration = (() => {
     const TARGET = 3
     if (effect === 'wave' || effect === 'polygon') {
