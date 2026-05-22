@@ -7,7 +7,7 @@ const VERTEX_SHADER = /* glsl */`
   uniform float uHeight;
   uniform float uSpeed;
   uniform float uFrequency;
-  uniform float uMode;    // 0 = wave, 1 = kaleidoscope
+  uniform float uMode;    // 0 = wave, 1 = kaleidoscope, 2 = trend, 3 = polygon
 
   varying vec2 vUv;
 
@@ -17,11 +17,20 @@ const VERTEX_SHADER = /* glsl */`
     vUv = uv;
     vec3 pos = position;
 
-    if (uMode < 0.5) {
-      // 10° rightward tilt: mix a small Y component into the horizontal phase
-      float tiltedX = uv.x + uv.y * 0.1763;  // tan(10°) = 0.1763
-      float phase = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
-      float wave  = sin(phase);
+    if (uMode < 0.5 || uMode > 2.5) {
+      float tiltedX = uv.x + uv.y * 0.1763;  // tan(10°) tilt
+      float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+
+      float wave;
+      if (uMode < 0.5) {
+        // Wave: smooth sine
+        wave = sin(phase);
+      } else {
+        // Polygon: triangle wave — sharp terrain ridges
+        // abs(mod(phase/PI, 2) - 1) * 2 - 1  maps 0→1→-1→1 in a V pattern
+        wave = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;
+      }
+
       pos.z += wave * uHeight * 1.6;
       pos.y += wave * uHeight * 0.45;
     }
@@ -59,6 +68,20 @@ const FRAGMENT_SHADER = /* glsl */`
       vec2 distortedUV = vUv + vec2(
         dispX * uWarpAmount * 0.002,   // horizontal warp
         dispY * uWarpAmount * 0.0002   // subtle vertical
+      );
+      gl_FragColor = texture2D(uTexture, distortedUV);
+      return;
+    }
+
+    // ── Polygon: triangle-wave warp ──────────────────────────────────────
+    if (uMode > 2.5) {
+      float tiltedX = vUv.x + vUv.y * 0.1763;
+      float phase   = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
+      float dispX   = abs(mod(phase / PI, 2.0) - 1.0) * 2.0 - 1.0;  // triangle
+      float dispY   = sign(sin(phase));                                // sharp step Y
+      vec2 distortedUV = vUv + vec2(
+        dispX * uWarpAmount * 0.002,
+        dispY * uWarpAmount * 0.0002
       );
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
@@ -355,6 +378,7 @@ export class ThreeRenderer {
     this._currentEffect = name
     this.uniforms.uMode.value = name === 'kaleidoscope' ? 1.0
                               : name === 'trend'        ? 2.0
+                              : name === 'polygon'      ? 3.0
                               : 0.0
     this._baseRotX = (name === 'kaleidoscope' || name === 'trend') ? 0.0 : -0.22
     this.mesh.rotation.x = this._baseRotX
