@@ -50,6 +50,8 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uKZoom;
   uniform float uKRadius;
   uniform float uKInnerR;
+  uniform float uTrendWarp;
+  uniform float uTrendSpeed;
   varying vec2 vUv;
 
   const float PI = 3.14159265359;
@@ -87,9 +89,16 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Trend: flat passthrough ───────────────────────────────────────────
+    // ── Trend: warp ───────────────────────────────────────────────────────
     if (uMode >= 1.5) {
-      gl_FragColor = texture2D(uTexture, vUv);
+      float phase = vUv.x * PI * 2.0 * 1.5 - uTime * uTrendSpeed * PI * 2.0;
+      float dispX = sin(phase);
+      float dispY = cos(phase);
+      vec2 distortedUV = vUv + vec2(
+        dispX * uTrendWarp * 0.002,
+        dispY * uTrendWarp * 0.0002
+      );
+      gl_FragColor = texture2D(uTexture, distortedUV);
       return;
     }
 
@@ -184,6 +193,8 @@ export class ThreeRenderer {
       uKZoom:      { value: 0.4 },
       uKRadius:    { value: 0.42 },
       uKInnerR:    { value: 0.13 },
+      uTrendWarp:  { value: 10.0 },
+      uTrendSpeed: { value: 0.5 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -401,6 +412,8 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
+    this.uniforms.uTrendWarp.value  = params.warpAmount ?? 10
+    this.uniforms.uTrendSpeed.value = params.speed ?? 0.5
     // Pre-render the full wrapped paragraph to an offscreen canvas using the
     // same layout logic as _renderText — redrawn only when settings change.
     if (!this._trendOffscreen) {
