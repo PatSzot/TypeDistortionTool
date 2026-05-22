@@ -52,12 +52,14 @@ const AirOpsLogo = () => (
 )
 
 export default function App() {
-  const mountRef   = useRef(null)
-  const rendRef    = useRef(null)
-  const rafRef     = useRef(null)
-  const startRef   = useRef(null)
-  const pausedAtRef= useRef(0)
-  const mouseRef   = useRef({ x: 0, y: 0 })
+  const mountRef      = useRef(null)
+  const rendRef       = useRef(null)
+  const rafRef        = useRef(null)
+  const startRef      = useRef(null)
+  const pausedAtRef   = useRef(0)
+  const mouseRef      = useRef({ x: 0, y: 0 })
+  const certStageRef  = useRef(null)
+  const certLerpRef   = useRef({ x: 0, y: 0 })
 
   const [phrase,    setPhrase]    = useState(EFFECT_DEFAULTS.wave.phrase)
   const [fontStack, setFontStack] = useState('serif')
@@ -80,7 +82,9 @@ export default function App() {
   const [certName,  setCertName]  = useState('Ariana Opera')
   const [certZoom,  setCertZoom]  = useState(2.60)
   const [certScale, setCertScale] = useState(1)
-  const canvasWrapRef = useRef(null)
+  const canvasWrapRef  = useRef(null)
+  const certScaleRef   = useRef(1)
+  certScaleRef.current = certScale
 
   // Always-current settings snapshot — read in renderer init to avoid stale closures
   const settingsRef = useRef({})
@@ -183,6 +187,20 @@ export default function App() {
     const loop = (ts) => {
       if (cancelled) return
       if (!startRef.current) startRef.current = ts - pausedAtRef.current * 1000
+
+      // Lerp the cert-stage 3D tilt — same LERP as the Three.js mesh but at
+      // 35 % of the effect rotation strength so the certificate tilts less dramatically.
+      if (certStageRef.current) {
+        const LERP = 0.06
+        certLerpRef.current.x += (mouseRef.current.x - certLerpRef.current.x) * LERP
+        certLerpRef.current.y += (mouseRef.current.y - certLerpRef.current.y) * LERP
+        const deg = (settingsRef.current.rotationStrength ?? 26) * 0.35
+        const rx  = -certLerpRef.current.y * deg
+        const ry  =  certLerpRef.current.x * deg
+        certStageRef.current.style.transform =
+          `scale(${certScaleRef.current}) rotateX(${rx}deg) rotateY(${ry}deg)`
+      }
+
       rendRef.current?.tick((ts - startRef.current) / 1000, mouseRef.current.x, mouseRef.current.y)
       rafRef.current = requestAnimationFrame(loop)
     }
@@ -277,10 +295,11 @@ export default function App() {
     <div className="app">
 
       {certMode ? (
-        <div className="cert-wrap" ref={canvasWrapRef}>
-          <div className="cert-stage" style={{ transform: `scale(${certScale})` }}>
-            <div ref={mountRef} className="cert-effect-pane"
-              onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} />
+        <div className="cert-wrap" ref={canvasWrapRef}
+          onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}
+          style={{ perspective: '2000px' }}>
+          <div className="cert-stage" ref={certStageRef}>
+            <div ref={mountRef} className="cert-effect-pane" />
             <div className="cert-panel">
               <div className="cert-content">
                 <div className="cert-top">
