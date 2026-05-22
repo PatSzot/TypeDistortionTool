@@ -56,7 +56,7 @@ export default function App() {
   const [leading,   setLeading]   = useState(111)   // stored as %, divided by 100 for renderer
   const [tracking,  setTracking]  = useState(-1.12)
   const [textWidth, setTextWidth] = useState(100)
-  const [textColor, setTextColor] = useState('#ffffff')
+  const [textColor, setTextColor] = useState('#000D05')
   const [textAlign, setTextAlign] = useState('center')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
