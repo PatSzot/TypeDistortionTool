@@ -105,7 +105,7 @@
   border-color: var(--accent-mid);
 }
 
-.field textarea { height: 72px; }
+.field textarea { min-height: 72px; overflow: hidden; }
 
 /* ── Number slider row ── */
 .param-row {

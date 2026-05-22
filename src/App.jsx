@@ -320,7 +320,16 @@ export default function App() {
         <div className="sidebar-section">
           <h3>Phrase</h3>
           <div className="field">
-            <textarea value={phrase} onChange={e => setPhrase(e.target.value)}
+            <textarea value={phrase}
+              onChange={e => {
+                setPhrase(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              onFocus={e => {
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
               placeholder="Enter phrase…" />
           </div>
         </div>
@@ -342,6 +351,7 @@ export default function App() {
           <ParamSlider label="Leading"  value={leading}   min={50}  max={200} step={1}   unit="%" onChange={setLeading}   />
           <ParamSlider label="Tracking" value={tracking}  min={-20} max={40}  step={0.5} unit="%" onChange={setTracking}  />
           <ParamSlider label="Width"    value={textWidth} min={20}  max={100} step={1}   unit="%" onChange={setTextWidth} />
+          <ParamSlider label="Zoom"     value={certZoom}  min={0.5} max={3}   step={0.05}         onChange={setCertZoom}  />
         </div>
 
         {/* Colors */}
@@ -398,7 +408,6 @@ export default function App() {
               <label>Name</label>
               <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
             </div>
-            <ParamSlider label="Zoom" value={certZoom} min={0.5} max={3} step={0.05} onChange={setCertZoom} />
           </>}
         </div>
 
