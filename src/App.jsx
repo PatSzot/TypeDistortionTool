@@ -70,12 +70,13 @@ export default function App() {
   const [certMode,  setCertMode]  = useState(false)
   const [certTitle, setCertTitle] = useState('AEO Analyst')
   const [certName,  setCertName]  = useState('Ariana Opera')
+  const [certZoom,  setCertZoom]  = useState(1)
   const [certScale, setCertScale] = useState(1)
   const canvasWrapRef = useRef(null)
 
   // Always-current settings snapshot — read in renderer init to avoid stale closures
   const settingsRef = useRef({})
-  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000' }
+  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000', certZoom }
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
 
@@ -95,6 +96,7 @@ export default function App() {
     const s = settingsRef.current
     rend.setEffect(s.effect)
     rend.setBgColor(s.bgColor)
+    rend.setZoom(s.certZoom)
     rend.setWaveParams(s.wave)
     rend.setRotationStrength(s.rotationStrength)
     if (s.effect === 'trend') {
@@ -168,6 +170,11 @@ export default function App() {
   useEffect(() => {
     rendRef.current?.setRotationStrength(rotationStrength)
   }, [rotationStrength])
+
+  // ── Zoom ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    rendRef.current?.setZoom(certZoom)
+  }, [certZoom])
 
   // ── Animation loop ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -391,6 +398,7 @@ export default function App() {
               <label>Name</label>
               <input type="text" value={certName} onChange={e => setCertName(e.target.value)} />
             </div>
+            <ParamSlider label="Zoom" value={certZoom} min={0.5} max={3} step={0.05} onChange={setCertZoom} />
           </>}
         </div>
 

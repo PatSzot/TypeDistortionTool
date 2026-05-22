@@ -322,6 +322,10 @@ export class ThreeRenderer {
     this.renderer.setClearColor(new THREE.Color(hex), 1)
   }
 
+  setZoom(zoom) {
+    this.camera.position.z = 4.0 / Math.max(0.1, zoom)
+  }
+
   setRotationStrength(deg) {
     this._rotStrength = deg
   }
