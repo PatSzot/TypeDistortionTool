@@ -170,7 +170,7 @@ export class ThreeRenderer {
 
   // ── Text rendering ─────────────────────────────────────────────────────
 
-  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90 }) {
+  drawText({ phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth = 90, textAlign = 'center' }) {
 
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
@@ -197,6 +197,7 @@ export class ThreeRenderer {
     const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
     const totalH = (lines.length - 1) * lineH + fSize
     const blockY = (ch - totalH) / 2
+    const blockX = (cw - maxW) / 2   // left edge of the text block
 
     ctx.fillStyle = textColor
     this.charPositions = []
@@ -204,7 +205,7 @@ export class ThreeRenderer {
     lines.forEach((line, li) => {
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
-      let   curX   = (cw - lineW) / 2
+      let   curX   = textAlign === 'left' ? blockX : (cw - lineW) / 2
       const baseY  = blockY + li * lineH + fSize * 0.78
       const widths = chars.map(c => ctx.measureText(c).width)
 
@@ -336,7 +337,7 @@ export class ThreeRenderer {
 
     ctx.clearRect(0, 0, cw, ch)
     const { phrase, fontFamily, fontSize, leading = 1, tracking = 0,
-            textColor, textWidth = 90 } = params
+            textColor, textWidth = 90, textAlign = 'center' } = params
     if (!phrase?.trim()) return
 
     const scale = 2
@@ -353,13 +354,14 @@ export class ThreeRenderer {
     const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
     const totalH = (lines.length - 1) * lineH + fSize
     const blockY = (ch - totalH) / 2
+    const blockX = (cw - maxW) / 2
 
     ctx.fillStyle = textColor
 
     lines.forEach((line, li) => {
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
-      let   curX   = (cw - lineW) / 2
+      let   curX   = textAlign === 'left' ? blockX : (cw - lineW) / 2
       const baseY  = blockY + li * lineH + fSize * 0.78
       const widths = chars.map(c => ctx.measureText(c).width)
       chars.forEach((char, ci) => {

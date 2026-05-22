@@ -50,6 +50,7 @@ export default function App() {
   const [tracking,  setTracking]  = useState(-1.12)
   const [textWidth, setTextWidth] = useState(100)
   const [textColor, setTextColor] = useState('#ffffff')
+  const [textAlign, setTextAlign] = useState('center')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
   const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12 })
@@ -89,18 +90,17 @@ export default function App() {
     if (effect === 'trend') {
       rendRef.current?.setTrendParams({
         phrase, fontFamily, fontSize,
-        leading: leading / 100, tracking, textColor, textWidth,
+        leading: leading / 100, tracking, textColor, textWidth, textAlign,
         speed: trendParams.speed,
         divisions: trendParams.divisions,
-
       })
       return
     }
     rendRef.current?.drawText({
       phrase, fontFamily, fontSize,
-      leading: leading / 100, tracking, textColor, textWidth,
+      leading: leading / 100, tracking, textColor, textWidth, textAlign,
     })
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, fontsReady, effect, trendParams])
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, textAlign, fontsReady, effect, trendParams])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -255,6 +255,10 @@ export default function App() {
               onClick={() => setFontStack('serif')}>Serif</button>
             <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
               onClick={() => setFontStack('sans')}>Sans</button>
+          </div>
+          <div className="seg-toggle">
+            <button className={`seg-btn${textAlign === 'left'   ? ' active' : ''}`} onClick={() => setTextAlign('left')}>Left</button>
+            <button className={`seg-btn${textAlign === 'center' ? ' active' : ''}`} onClick={() => setTextAlign('center')}>Center</button>
           </div>
           <ParamSlider label="Size"     value={fontSize}  min={12}  max={200} step={1}   unit="%" onChange={setFontSize}  />
           <ParamSlider label="Leading"  value={leading}   min={50}  max={200} step={1}   unit="%" onChange={setLeading}   />
