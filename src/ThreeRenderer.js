@@ -239,13 +239,19 @@ export class ThreeRenderer {
     const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
     const totalH      = (lines.length - 1) * lineH + fSize
 
-    // Resize canvas (and plane geometry) if needed; re-apply state if it reset
-    if (this._fitCanvas(totalH + pad * 2)) applyCtxState()
+    // Resize canvas (and plane geometry) if needed
+    this._fitCanvas(totalH + pad * 2)
 
     const ch = canvas.height
     ctx.clearRect(0, 0, cw, ch)
 
-    const blockY = (ch - totalH) / 2
+    // Always re-apply after clear — ensures font/color are current regardless
+    // of whether _fitCanvas resized (which resets context state) or not.
+    applyCtxState()
+
+    // Start text at the top edge — no vertical centering so there is no gap
+    // between the top of the viewport and the first line of text.
+    const blockY = 0
     const blockX = (cw - maxW) / 2
 
     this.charPositions = []
@@ -424,11 +430,12 @@ export class ThreeRenderer {
 
     // Keep offscreen canvas in sync with main canvas dimensions
     if (off.height !== ch) off.height = ch
-    if (this._fitCanvas(ch)) applyCtxState()
+    this._fitCanvas(ch)
 
     ctx.clearRect(0, 0, cw, ch)
+    applyCtxState()
 
-    const blockY = (ch - totalH) / 2
+    const blockY = 0
     const blockX = (cw - maxW) / 2
 
     lines.forEach((line, li) => {
