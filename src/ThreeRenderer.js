@@ -51,7 +51,7 @@ const FRAGMENT_SHADER = /* glsl */`
   uniform float uKRadius;
   uniform float uKInnerR;
   uniform float uTrendWarp;
-  uniform float uTrendSpeed;
+  uniform float uTrendAnimT;  // 0→1 per enter/exit phase, updated each frame
   varying vec2 vUv;
 
   const float PI = 3.14159265359;
@@ -89,11 +89,16 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Trend: warp ───────────────────────────────────────────────────────
+    // ── Trend: warp correlated to strip enter/exit progress ───────────────
     if (uMode >= 1.5) {
-      float phase = vUv.x * PI * 2.0 * 1.5 - uTime * uTrendSpeed * PI * 2.0;
-      float dispX = sin(phase);
-      float dispY = cos(phase);
+      // uTrendAnimT is 0→1 per enter/exit phase, set each frame in JS.
+      // sin(2π·animT) peaks at mid-phase (max motion) and returns to 0 at
+      // start/end — so warp is zero when strips are still and peaks when
+      // they are moving fastest.
+      float activityEnvelope = sin(uTrendAnimT * PI);
+      float phase = vUv.x * PI * 3.0 - uTrendAnimT * PI * 2.0;
+      float dispX = sin(phase) * activityEnvelope;
+      float dispY = cos(phase) * activityEnvelope;
       vec2 distortedUV = vUv + vec2(
         dispX * uTrendWarp * 0.002,
         dispY * uTrendWarp * 0.0002
@@ -193,8 +198,8 @@ export class ThreeRenderer {
       uKZoom:      { value: 0.4 },
       uKRadius:    { value: 0.42 },
       uKInnerR:    { value: 0.13 },
-      uTrendWarp:  { value: 10.0 },
-      uTrendSpeed: { value: 0.5 },
+      uTrendWarp:   { value: 10.0 },
+      uTrendAnimT:  { value: 0.0 },
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -334,6 +339,10 @@ export class ThreeRenderer {
 
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
+    // Advance warp uniform: progress through the current enter/exit phase (0→1)
+    // Both passes share the same phaseLen period, so either one gives the right clock
+    this.uniforms.uTrendAnimT.value = (t % phaseLen) / phaseLen
+
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
       const tMod    = (t + pass * phaseLen) % cycle
@@ -412,8 +421,7 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
-    this.uniforms.uTrendWarp.value  = params.warpAmount ?? 10
-    this.uniforms.uTrendSpeed.value = params.speed ?? 0.5
+    this.uniforms.uTrendWarp.value = params.warpAmount ?? 10
     // Pre-render the full wrapped paragraph to an offscreen canvas using the
     // same layout logic as _renderText — redrawn only when settings change.
     if (!this._trendOffscreen) {
