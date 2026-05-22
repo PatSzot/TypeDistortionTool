@@ -298,13 +298,12 @@ export class ThreeRenderer {
     ctx.clearRect(0, 0, cw, ch)
     if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
-    // The main canvas is 3× the camera-visible height (for wave/polygon seamless
-    // tiling). For the trend effect we must restrict strips to the visible region
-    // only — otherwise most strips fall outside the camera viewport.
-    const camZ     = this.camera.position.z
-    const halfFOV  = (72 / 2) * Math.PI / 180
-    const visH     = Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W)
-    const startY   = Math.round((ch - visH) / 2)  // center of canvas
+    // Main canvas is 3× the visible height (for wave/polygon tiling).
+    // Offscreen is sized to exactly visH so strip i contains line i — no offset needed.
+    const camZ    = this.camera.position.z
+    const halfFOV = (72 / 2) * Math.PI / 180
+    const visH    = Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W)
+    const startY  = Math.round((ch - visH) / 2)  // center of main canvas = camera viewport
 
     const NUM      = Math.max(2, Math.round(divisions))
     const sH       = visH / NUM
@@ -400,16 +399,6 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
-    // Pre-render the full wrapped paragraph to an offscreen canvas using the
-    // same layout logic as _renderText — redrawn only when settings change.
-    if (!this._trendOffscreen) {
-      this._trendOffscreen        = document.createElement('canvas')
-      this._trendOffscreen.width  = 2048
-      this._trendOffscreen.height = 1024
-    }
-    const off = this._trendOffscreen
-    const ctx = off.getContext('2d')
-    const cw  = off.width
 
     const { phrase, fontFamily, fontSize, leading = 1, tracking = 0,
             textColor, textWidth = 90, textAlign = 'center' } = params
@@ -418,6 +407,28 @@ export class ThreeRenderer {
     const fSize = fontSize * 2
     const trkPx = tracking * 2
     const lineH = fSize * leading
+
+    // Visible canvas height — offscreen is sized exactly to this so strip
+    // indices map 1-to-1 with pixel positions, no offset maths needed.
+    const camZ    = this.camera.position.z
+    const halfFOV = (72 / 2) * Math.PI / 180
+    const visH    = Math.max(TEXT_H, Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W))
+    // Main canvas stays 3× for wave/polygon seamless tiling
+    const mainCh  = Math.max(TEXT_H, visH * 3)
+
+    if (!this._trendOffscreen) {
+      this._trendOffscreen       = document.createElement('canvas')
+      this._trendOffscreen.width = TEXT_W
+    }
+    const off = this._trendOffscreen
+    const ctx = off.getContext('2d')
+    const cw  = off.width
+
+    // Resize offscreen to match the visible height exactly
+    if (off.height !== visH) off.height = visH
+
+    // Resize main canvas/plane if needed (same logic as wave)
+    this._fitCanvas(mainCh)
 
     const applyCtxState = () => {
       ctx.font          = `400 ${fSize}px ${fontFamily}`
@@ -431,33 +442,25 @@ export class ThreeRenderer {
 
     const maxW         = cw * (textWidth / 100)
     const singlePhrase = phrase.trim()
-    const pad          = fSize * 1.5
 
-    // Repeat phrase to fill the visible canvas height
+    // Enough repeats to fill the visible height
     const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
-    const target      = this._targetCanvasH()
-    const linesNeeded = Math.ceil(target / lineH)
+    const linesNeeded = Math.ceil(visH / lineH) + 1
     const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
     const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
     const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
-    const totalH      = (lines.length - 1) * lineH + fSize
-    const ch          = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
 
-    // Keep offscreen canvas in sync with main canvas dimensions
-    if (off.height !== ch) off.height = ch
-    this._fitCanvas(ch)
-
-    ctx.clearRect(0, 0, cw, ch)
+    ctx.clearRect(0, 0, cw, visH)
     applyCtxState()
 
-    const blockY = 0
     const blockX = (cw - maxW) / 2
 
     lines.forEach((line, li) => {
+      const baseY = li * lineH + fSize * 0.78
+      if (baseY - fSize > visH) return   // skip lines below visible area
       const chars  = [...line]
       const lineW  = this._measureLine(ctx, line, trkPx)
       let   curX   = textAlign === 'left' ? blockX : (cw - lineW) / 2
-      const baseY  = blockY + li * lineH + fSize * 0.78
       const widths = chars.map(c => ctx.measureText(c).width)
       chars.forEach((char, ci) => {
         ctx.fillText(char, curX, baseY)
@@ -465,7 +468,6 @@ export class ThreeRenderer {
       })
     })
 
-    // Trigger immediate texture update (don't wait for next tick)
     this.texture.needsUpdate = true
   }
 
