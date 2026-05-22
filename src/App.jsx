@@ -196,7 +196,7 @@ export default function App() {
         certLerpRef.current.y += (mouseRef.current.y - certLerpRef.current.y) * LERP
         const deg = (settingsRef.current.rotationStrength ?? 26) * 0.35
         const rx  = -certLerpRef.current.y * deg
-        const ry  =  certLerpRef.current.x * deg
+        const ry  = -certLerpRef.current.x * deg  // CSS rotateY is opposite to Three.js rotation.y
         certStageRef.current.style.transform =
           `scale(${certScaleRef.current}) rotateX(${rx}deg) rotateY(${ry}deg)`
       }
