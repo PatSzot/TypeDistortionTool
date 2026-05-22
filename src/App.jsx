@@ -53,7 +53,7 @@ export default function App() {
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
   const [kParams,      setKParams]      = useState({ speed: 0.05, zoom: 0.4, radius: 150, innerR: 13 })
-  const [trendParams,      setTrendParams]      = useState({ speed: 0.5 })
+  const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12 })
   const [rotationStrength, setRotationStrength] = useState(26)
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
@@ -221,7 +221,7 @@ export default function App() {
       // cycle = 2 × phaseLen (no hold or pause)
       const s = trendParams.speed
       if (s <= 0) return TARGET
-      const phaseLen = 0.8 / s + 39 * 0.015 / s
+      const phaseLen = 0.8 / s + (trendParams.divisions - 1) * 0.015 / s
       return 2 * phaseLen
     } else {
       const s = kParams.speed
@@ -307,7 +307,8 @@ export default function App() {
           </>}
 
           {effect === 'trend' && <>
-            <ParamSlider label="Speed" value={trendParams.speed} min={0.1} max={1} step={0.05} onChange={v => setTrendParam('speed', v)} />
+            <ParamSlider label="Speed"     value={trendParams.speed}     min={0.1} max={1}  step={0.05} onChange={v => setTrendParam('speed', v)}     />
+            <ParamSlider label="Divisions" value={trendParams.divisions} min={2}   max={40} step={1}    onChange={v => setTrendParam('divisions', v)} />
           </>}
 
           {effect === 'kaleidoscope' && <>

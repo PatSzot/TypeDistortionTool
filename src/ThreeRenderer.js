@@ -305,7 +305,7 @@ export class ThreeRenderer {
   // exits. Entering strips expand from the LEFT edge; exiting strips collapse
   // toward the RIGHT edge — they occupy complementary halves of each strip,
   // guaranteeing no blank frame anywhere in the loop.
-  _drawTextTrend({ speed = 0.5 }, t = 0) {
+  _drawTextTrend({ speed = 0.5, divisions = 12 }, t = 0) {
     const canvas = this.textCanvas
     const ctx    = canvas.getContext('2d')
     const cw     = canvas.width
@@ -314,7 +314,7 @@ export class ThreeRenderer {
     ctx.clearRect(0, 0, cw, ch)
     if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
 
-    const NUM      = 12
+    const NUM      = Math.max(2, Math.round(divisions))
     const sH       = ch / NUM
     const STAG     = 0.015 / speed
     const DUR      = 0.8   / speed
