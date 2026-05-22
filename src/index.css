@@ -1,7 +1,7 @@
 @font-face {
   font-family: 'Serrif VF';
   src: url('/SerrifVF.ttf') format('truetype');
-  font-weight: 400;
+  font-weight: 100 900;
   font-display: swap;
 }
 @font-face {
