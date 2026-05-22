@@ -89,12 +89,6 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Trend: flat passthrough ───────────────────────────────────────────
-    if (uMode >= 0.5) {
-      gl_FragColor = texture2D(uTexture, vUv);
-      return;
-    }
-
   }
 `
 
@@ -284,81 +278,6 @@ export class ThreeRenderer {
     this.texture.needsUpdate = true
   }
 
-  // ── Trend ───────────────────────────────────────────────────────────────
-  // Two passes offset by phaseLen so one is always entering while the other
-  // exits. Entering strips expand from the LEFT edge; exiting strips collapse
-  // toward the RIGHT edge — they occupy complementary halves of each strip,
-  // guaranteeing no blank frame anywhere in the loop.
-  _drawTextTrend({ speed = 0.5, divisions = 12 }, t = 0) {
-    const canvas = this.textCanvas
-    const ctx    = canvas.getContext('2d')
-    const cw     = canvas.width
-    const ch     = canvas.height
-
-    ctx.clearRect(0, 0, cw, ch)
-    if (!this._trendOffscreen) { this.texture.needsUpdate = true; return }
-
-    // Main canvas is 3× the visible height (for wave/polygon tiling).
-    // Offscreen is sized to exactly visH so strip i contains line i — no offset needed.
-    const camZ    = this.camera.position.z
-    const halfFOV = (72 / 2) * Math.PI / 180
-    const visH    = Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W)
-    const startY  = Math.round((ch - visH) / 2)  // center of main canvas = camera viewport
-
-    // Visible x range on the text canvas depends on the camera aspect ratio.
-    // In cert mode (portrait 960×1080) the camera sees only the centre ~50 % of the
-    // 2048 px canvas width, so pivoting strip animations from x=0/cw would make them
-    // invisible for most of their travel.  Pivot from the actual viewport edges instead.
-    const visW   = Math.round(visH * this.camera.aspect)
-    const startX = Math.max(0, Math.round((cw - visW) / 2))
-    const endX   = Math.min(cw, startX + visW)
-
-    const NUM      = Math.max(2, Math.round(divisions))
-    const sH       = visH / NUM
-    const STAG     = 0.015 / speed
-    const DUR      = 0.8   / speed
-    const phaseLen = DUR + (NUM - 1) * STAG
-    const cycle    = 2 * phaseLen
-
-    const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
-
-    // Draw entering pass first (behind), exiting pass second (in front)
-    for (let pass = 0; pass < 2; pass++) {
-      const tMod     = (t + pass * phaseLen) % cycle
-      const entering = tMod < phaseLen
-
-      for (let i = 0; i < NUM; i++) {
-        let sx, pivX
-
-        if (entering) {
-          const delay = pass === 0 ? i * STAG : (NUM - 1 - i) * STAG
-          sx   = ease(Math.max(0, Math.min(1, (tMod - delay) / DUR)))
-          pivX = startX   // left edge of camera viewport
-        } else {
-          const delay = pass === 0 ? (NUM - 1 - i) * STAG : i * STAG
-          sx   = 1 - ease(Math.max(0, Math.min(1, (tMod - phaseLen - delay) / DUR)))
-          pivX = endX     // right edge of camera viewport
-        }
-
-        if (sx <= 0.001) continue
-
-        ctx.save()
-        ctx.beginPath()
-        // +1px height to eliminate sub-pixel gaps between strips
-        ctx.rect(0, startY + i * sH, cw, sH + 1)
-        ctx.clip()
-        ctx.translate(pivX, 0)
-        ctx.scale(sx, 1)
-        ctx.translate(-pivX, 0)
-        // Offset the offscreen so its y=0 aligns with the visible region
-        ctx.drawImage(this._trendOffscreen, 0, startY)
-        ctx.restore()
-      }
-    }
-
-    this.texture.needsUpdate = true
-  }
-
   _wrapWords(ctx, text, maxPx, trkPx) {
     const words = text.split(' ')
     const lines = []
@@ -386,10 +305,8 @@ export class ThreeRenderer {
 
   setEffect(name) {
     this._currentEffect = name
-    this.uniforms.uMode.value = name === 'trend'   ? 1.0
-                              : name === 'polygon' ? 2.0
-                              : 0.0
-    this._baseRotX = name === 'trend' ? 0.0 : -0.22
+    this.uniforms.uMode.value = name === 'polygon' ? 2.0 : 0.0
+    this._baseRotX = -0.22
     this.mesh.rotation.x = this._baseRotX
   }
 
@@ -403,80 +320,6 @@ export class ThreeRenderer {
 
   setRotationStrength(deg) {
     this._rotStrength = deg
-  }
-
-  setTrendParams(params) {
-    this._trendParams = params
-
-    const { phrase, fontFamily, fontSize, leading = 1, tracking = 0,
-            textColor, textWidth = 90, textAlign = 'center' } = params
-    if (!phrase?.trim()) return
-
-    const fSize = fontSize * 2
-    const trkPx = tracking * 2
-    const lineH = fSize * leading
-
-    // Visible canvas height — offscreen is sized exactly to this so strip
-    // indices map 1-to-1 with pixel positions, no offset maths needed.
-    const camZ    = this.camera.position.z
-    const halfFOV = (72 / 2) * Math.PI / 180
-    const visH    = Math.max(TEXT_H, Math.round(2 * Math.tan(halfFOV) * camZ * TEXT_W / PLANE_W))
-    // Main canvas stays 3× for wave/polygon seamless tiling
-    const mainCh  = Math.max(TEXT_H, visH * 3)
-
-    if (!this._trendOffscreen) {
-      this._trendOffscreen       = document.createElement('canvas')
-      this._trendOffscreen.width = TEXT_W
-    }
-    const off = this._trendOffscreen
-    const ctx = off.getContext('2d')
-    const cw  = off.width
-
-    // Resize offscreen to match the visible height exactly
-    if (off.height !== visH) off.height = visH
-
-    // Resize main canvas/plane if needed (same logic as wave)
-    this._fitCanvas(mainCh)
-
-    const applyCtxState = () => {
-      ctx.font          = `400 ${fSize}px ${fontFamily}`
-      ctx.letterSpacing = '0px'
-      ctx.textBaseline  = 'alphabetic'
-      ctx.textAlign     = 'left'
-      ctx.fillStyle     = textColor
-    }
-
-    applyCtxState()
-
-    const maxW         = cw * (textWidth / 100)
-    const singlePhrase = phrase.trim()
-
-    // Enough repeats to fill the visible height
-    const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
-    const linesNeeded = Math.ceil(visH / lineH) + 1
-    const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
-    const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
-    const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
-
-    ctx.clearRect(0, 0, cw, visH)
-    applyCtxState()
-
-    const blockX = (cw - maxW) / 2
-
-    lines.forEach((line, li) => {
-      const baseY = li * lineH + fSize * 0.78
-      if (baseY - fSize > visH) return   // skip lines below visible area
-      const chars  = [...line]
-      const lineW  = this._measureLine(ctx, line, trkPx)
-      let   curX   = textAlign === 'left' ? blockX : (cw - lineW) / 2
-      const widths = chars.map(c => ctx.measureText(c).width)
-      chars.forEach((char, ci) => {
-        ctx.fillText(char, curX, baseY)
-        curX += widths[ci] + trkPx
-      })
-    })
-
-    this.texture.needsUpdate = true
   }
 
   // ── Wave params ────────────────────────────────────────────────────────
@@ -504,9 +347,6 @@ export class ThreeRenderer {
     this.mesh.rotation.y  =  this._ptr.x * maxRad
     this.mesh.rotation.x  =  this._baseRotX - this._ptr.y * maxRad * 0.6
 
-    if (this._currentEffect === 'trend' && this._trendParams) {
-      this._drawTextTrend(this._trendParams, t)
-    }
     this.uniforms.uTime.value = t
     this.renderer.render(this.scene, this.camera)
   }

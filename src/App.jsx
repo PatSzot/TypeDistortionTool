@@ -8,16 +8,12 @@ const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_WAVE = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
-const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
-const EFFECT_BG        = { wave: '#0092FF', polygon: '#FCB526', trend: '#008C44' }
+const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'AEO Analyst' }
+const EFFECT_BG        = { wave: '#0092FF', polygon: '#FCB526' }
 const EFFECT_DEFAULTS  = {
   wave: {
     phrase:    'Reading the field is one half of Content Engineering. Building on it is the other. This certification proves you can find the right problem, design a system that solves it, and explain why it matters to the business.',
     certTitle: 'Systems Builder',
-  },
-  trend: {
-    phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
-    certTitle: 'AEO Analyst',
   },
   polygon: {
     phrase:    'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.',
@@ -73,7 +69,6 @@ export default function App() {
   const [textAlign, setTextAlign] = useState('center')
   const [wave,      setWave]      = useState(DEFAULT_WAVE)
   const [effect,    setEffect]    = useState('wave')
-  const [trendParams,      setTrendParams]      = useState({ speed: 0.5, divisions: 12 })
   const [rotationStrength, setRotationStrength] = useState(26)
   const [playing,   setPlaying]   = useState(true)
   const [recording,    setRecording]    = useState(false)
@@ -89,7 +84,7 @@ export default function App() {
 
   // Always-current settings snapshot — read in renderer init to avoid stale closures
   const settingsRef = useRef({})
-  settingsRef.current = { effect, wave, rotationStrength, trendParams, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000', certZoom }
+  settingsRef.current = { effect, wave, rotationStrength, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000', certZoom }
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
 
@@ -112,20 +107,11 @@ export default function App() {
     rend.setZoom(s.certZoom)
     rend.setWaveParams(s.wave)
     rend.setRotationStrength(s.rotationStrength)
-    if (s.effect === 'trend') {
-      rend.setTrendParams({
-        phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
-        leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
-        textWidth: s.textWidth, textAlign: s.textAlign,
-        speed: s.trendParams.speed, divisions: s.trendParams.divisions,
-      })
-    } else {
-      rend.drawText({
-        phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
-        leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
-        textWidth: s.textWidth, textAlign: s.textAlign,
-      })
-    }
+    rend.drawText({
+      phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
+      leading: s.leading / 100, tracking: s.tracking, textColor: s.textColor,
+      textWidth: s.textWidth, textAlign: s.textAlign,
+    })
 
     const ro = new ResizeObserver(() => {
       rend.resize(mount.clientWidth, mount.clientHeight)
@@ -160,22 +146,13 @@ export default function App() {
     const fontName = fontFamily.split(',')[0].trim()   // e.g. 'Serrif VF' or 'Saans'
     document.fonts.load(`400 1em ${fontName}`).then(() => {
       if (cancelled) return
-      if (effect === 'trend') {
-        rendRef.current?.setTrendParams({
-          phrase, fontFamily, fontSize,
-          leading: leading / 100, tracking, textColor, textWidth, textAlign,
-          speed: trendParams.speed,
-          divisions: trendParams.divisions,
-        })
-        return
-      }
       rendRef.current?.drawText({
         phrase, fontFamily, fontSize,
         leading: leading / 100, tracking, textColor, textWidth, textAlign,
       })
     })
     return () => { cancelled = true }
-  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, textAlign, fontsReady, effect, trendParams])
+  }, [phrase, fontFamily, fontSize, leading, tracking, textColor, textWidth, textAlign, fontsReady, effect])
 
   // ── Update wave uniforms whenever params change ────────────────────────
   useEffect(() => {
@@ -275,28 +252,16 @@ export default function App() {
   }
 
   const setWaveParam  = (key, val) => setWave(w => ({ ...w, [key]: val }))
-  const setTrendParam = (key, val) => setTrendParams(p => ({ ...p, [key]: val }))
 
   // ── Seamless loop duration ─────────────────────────────────────────────
   // Shortest T ≥ 3s where the animation returns to its exact start state.
   // Wave/Polygon: period = 1/speed  →  T = ceil(3·speed)/speed
-  // Trend: period = 2·phaseLen (two-pass cycle)
   const seamlessLoopDuration = (() => {
     const TARGET = 3
-    if (effect === 'wave' || effect === 'polygon') {
-      const s = wave.speed
-      if (s <= 0) return TARGET
-      const k = Math.max(1, Math.round(TARGET * s))
-      return k / s
-    } else if (effect === 'trend') {
-      // cycle = 2 × phaseLen (no hold or pause)
-      const s = trendParams.speed
-      if (s <= 0) return TARGET
-      const phaseLen = 0.8 / s + (trendParams.divisions - 1) * 0.015 / s
-      return 2 * phaseLen
-    } else {
-      return TARGET
-    }
+    const s = wave.speed
+    if (s <= 0) return TARGET
+    const k = Math.max(1, Math.round(TARGET * s))
+    return k / s
   })()
 
   const onMouseMove = e => {
@@ -417,21 +382,12 @@ export default function App() {
           <div className="seg-toggle">
             <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
             <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
-            <button className={`seg-btn${effect === 'trend'   ? ' active' : ''}`} onClick={() => switchEffect('trend')}>{EFFECT_LABELS.trend}</button>
           </div>
 
-          {(effect === 'wave' || effect === 'polygon') && <>
-            <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
-            <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
-            <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
-            <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
-          </>}
-
-          {effect === 'trend' && <>
-            <ParamSlider label="Speed"     value={trendParams.speed}      min={0.1} max={1}   step={0.05} onChange={v => setTrendParam('speed', v)}      />
-            <ParamSlider label="Divisions" value={trendParams.divisions}  min={2}   max={40}  step={1}    onChange={v => setTrendParam('divisions', v)}  />
-
-          </>}
+          <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
+          <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
+          <ParamSlider label="Frequency" value={wave.frequency}  min={0.5} max={2}   step={0.1}  unit="%" onChange={v => setWaveParam('frequency', v)}  />
+          <ParamSlider label="Warp"      value={wave.warpAmount} min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('warpAmount', v)} />
 
 
         </div>
