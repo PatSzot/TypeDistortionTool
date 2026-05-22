@@ -462,8 +462,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding-bottom: 32px;
+  justify-content: flex-start;
 }
 
 .cert-title {
@@ -476,7 +475,7 @@
 }
 
 .cert-name {
-  font-family: 'Serrif VF', Georgia, serif;
+  font-family: 'Saans', Inter, sans-serif;
   font-weight: 400;
   font-size: 68px;
   line-height: 1;
