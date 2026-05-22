@@ -131,7 +131,7 @@ export default function App() {
     if (!certMode) return
     const wrap = canvasWrapRef.current
     if (!wrap) return
-    const update = () => setCertScale(Math.min(wrap.clientWidth / 1920, wrap.clientHeight / 1080))
+    const update = () => setCertScale(Math.min(wrap.clientWidth / 1920, wrap.clientHeight / 1080) * 0.88)
     update()
     const ro = new ResizeObserver(update)
     ro.observe(wrap)

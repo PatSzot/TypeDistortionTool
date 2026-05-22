@@ -26,7 +26,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #000d05;
+  --bg:        #DFEAE3;
   --surface:   rgba(0, 41, 16, 0.5);
   --border:    #002910;
   --border-mid: rgba(0, 140, 68, 0.25);
