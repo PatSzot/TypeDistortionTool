@@ -167,6 +167,18 @@ export class ThreeRenderer {
     this._rotStrength = 10               // degrees
   }
 
+  // ── Target canvas height based on current camera zoom ─────────────────
+  // Returns the canvas pixel height needed to fill the visible viewport,
+  // so repeated phrases always cover the full effect pane.
+
+  _targetCanvasH() {
+    const camZ    = this.camera.position.z
+    const halfFOV = (72 / 2) * Math.PI / 180
+    const visH    = 2 * Math.tan(halfFOV) * camZ         // visible world height
+    const px      = Math.ceil(visH * TEXT_W / PLANE_W)   // world → canvas px
+    return Math.max(TEXT_H, Math.ceil(px * 1.15))        // 15% headroom
+  }
+
   // ── Canvas / plane resize ──────────────────────────────────────────────
   // Returns true if the canvas was actually resized.
 
@@ -212,12 +224,20 @@ export class ThreeRenderer {
       return
     }
 
-    // Measure with correct font before deciding canvas height
     applyCtxState()
-    const maxW   = cw * (textWidth / 100)
-    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
-    const totalH = (lines.length - 1) * lineH + fSize
-    const pad    = fSize * 1.5
+
+    const maxW        = cw * (textWidth / 100)
+    const singlePhrase = phrase.trim()
+    const pad          = fSize * 1.5
+
+    // Repeat phrase (space-separated) until it fills the visible canvas height
+    const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
+    const target      = this._targetCanvasH()
+    const linesNeeded = Math.ceil((target - pad * 2) / lineH)
+    const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
+    const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
+    const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
+    const totalH      = (lines.length - 1) * lineH + fSize
 
     // Resize canvas (and plane geometry) if needed; re-apply state if it reset
     if (this._fitCanvas(totalH + pad * 2)) applyCtxState()
@@ -388,11 +408,19 @@ export class ThreeRenderer {
 
     applyCtxState()
 
-    const maxW   = cw * (textWidth / 100)
-    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
-    const totalH = (lines.length - 1) * lineH + fSize
-    const pad    = fSize * 1.5
-    const ch     = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
+    const maxW         = cw * (textWidth / 100)
+    const singlePhrase = phrase.trim()
+    const pad          = fSize * 1.5
+
+    // Repeat phrase to fill the visible canvas height
+    const singleLines = this._wrapWords(ctx, singlePhrase, maxW, trkPx)
+    const target      = this._targetCanvasH()
+    const linesNeeded = Math.ceil((target - pad * 2) / lineH)
+    const repeats     = Math.max(1, Math.ceil(linesNeeded / Math.max(1, singleLines.length)))
+    const fullPhrase  = Array(repeats).fill(singlePhrase).join(' ')
+    const lines       = repeats > 1 ? this._wrapWords(ctx, fullPhrase, maxW, trkPx) : singleLines
+    const totalH      = (lines.length - 1) * lineH + fSize
+    const ch          = Math.max(TEXT_H, Math.ceil(totalH + pad * 2))
 
     // Keep offscreen canvas in sync with main canvas dimensions
     if (off.height !== ch) off.height = ch
