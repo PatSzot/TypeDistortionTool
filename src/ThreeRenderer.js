@@ -89,20 +89,16 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
-    // ── Trend: warp correlated to strip enter/exit progress ───────────────
+    // ── Trend: edge-localised warp ────────────────────────────────────────
+    // uTrendAnimT (0→1) approximates the x-position of the moving transition
+    // edge each frame. A squared falloff limits distortion to a narrow band
+    // around that edge — no warp elsewhere on the texture.
     if (uMode >= 1.5) {
-      // uTrendAnimT is 0→1 per enter/exit phase, set each frame in JS.
-      // sin(2π·animT) peaks at mid-phase (max motion) and returns to 0 at
-      // start/end — so warp is zero when strips are still and peaks when
-      // they are moving fastest.
-      float activityEnvelope = sin(uTrendAnimT * PI);
-      float phase = vUv.x * PI * 3.0 - uTrendAnimT * PI * 2.0;
-      float dispX = sin(phase) * activityEnvelope;
-      float dispY = cos(phase) * activityEnvelope;
-      vec2 distortedUV = vUv + vec2(
-        dispX * uTrendWarp * 0.002,
-        dispY * uTrendWarp * 0.0002
-      );
+      float edgeDist = abs(vUv.x - uTrendAnimT);
+      float falloff  = max(0.0, 1.0 - edgeDist / 0.12);
+      falloff = falloff * falloff;
+      float disp = sin(vUv.y * PI * 8.0 - uTrendAnimT * PI * 6.0) * falloff;
+      vec2 distortedUV = vUv + vec2(disp * uTrendWarp * 0.003, 0.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
     }
@@ -339,9 +335,16 @@ export class ThreeRenderer {
 
     const ease = x => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2
 
-    // Advance warp uniform: progress through the current enter/exit phase (0→1)
-    // Both passes share the same phaseLen period, so either one gives the right clock
-    this.uniforms.uTrendAnimT.value = (t % phaseLen) / phaseLen
+    // Warp edge position: use pass-0's median strip sx as the representative
+    // edge x (0→1), so the warp band tracks the actual strip boundary.
+    const tMod0    = t % cycle
+    const ent0     = tMod0 < phaseLen
+    const midDelay = Math.floor(NUM / 2) * STAG
+    const midExDelay = (NUM - 1 - Math.floor(NUM / 2)) * STAG
+    const edgeX = ent0
+      ? ease(Math.max(0, Math.min(1, (tMod0 - midDelay) / DUR)))
+      : 1 - ease(Math.max(0, Math.min(1, (tMod0 - phaseLen - midExDelay) / DUR)))
+    this.uniforms.uTrendAnimT.value = edgeX
 
     // Draw entering pass first (behind), exiting pass second (in front)
     for (let pass = 0; pass < 2; pass++) {
