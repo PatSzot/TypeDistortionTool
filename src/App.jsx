@@ -88,7 +88,11 @@ export default function App() {
   // ── Redraw text whenever text settings change ──────────────────────────
   useEffect(() => {
     if (effect === 'trend') {
-      rendRef.current?.setTrendParams({ phrase, fontFamily, fontSize, textColor, speed: trendParams.speed })
+      rendRef.current?.setTrendParams({
+        phrase, fontFamily, fontSize,
+        leading: leading / 100, tracking, textColor, textWidth,
+        speed: trendParams.speed,
+      })
       return
     }
     const arcMode   = effect === 'kaleidoscope'

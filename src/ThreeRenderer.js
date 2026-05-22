@@ -400,7 +400,8 @@ export class ThreeRenderer {
 
   setTrendParams(params) {
     this._trendParams = params
-    // Pre-render text once to an offscreen canvas; redrawn only on settings change
+    // Pre-render the full wrapped paragraph to an offscreen canvas using the
+    // same layout logic as _renderText — redrawn only when settings change.
     if (!this._trendOffscreen) {
       this._trendOffscreen        = document.createElement('canvas')
       this._trendOffscreen.width  = 2048
@@ -408,20 +409,41 @@ export class ThreeRenderer {
     }
     const off = this._trendOffscreen
     const ctx = off.getContext('2d')
-    ctx.clearRect(0, 0, off.width, off.height)
-    if (!params.phrase?.trim()) return
+    const cw  = off.width, ch = off.height
 
-    // Auto-fit: scale font size so text spans ~85% of canvas width
-    let fSize = Math.max(80, params.fontSize * 2 * 2)
-    ctx.font = `700 ${fSize}px ${params.fontFamily}`
-    const tw = ctx.measureText(params.phrase.trim()).width
-    if (tw > off.width * 0.85) fSize *= (off.width * 0.85) / tw
+    ctx.clearRect(0, 0, cw, ch)
+    const { phrase, fontFamily, fontSize, leading = 1, tracking = 0,
+            textColor, textWidth = 90 } = params
+    if (!phrase?.trim()) return
 
-    ctx.font         = `700 ${Math.round(fSize)}px ${params.fontFamily}`
-    ctx.fillStyle    = params.textColor
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(params.phrase.trim(), off.width / 2, off.height / 2)
+    const scale = 2
+    const fSize = fontSize * scale
+    const trkPx = tracking * scale
+    const lineH = fSize * leading
+
+    ctx.font          = `400 ${fSize}px ${fontFamily}`
+    ctx.letterSpacing = '0px'
+    ctx.textBaseline  = 'alphabetic'
+    ctx.textAlign     = 'left'
+
+    const maxW   = cw * (textWidth / 100)
+    const lines  = this._wrapWords(ctx, phrase.trim(), maxW, trkPx)
+    const totalH = (lines.length - 1) * lineH + fSize
+    const blockY = (ch - totalH) / 2
+
+    ctx.fillStyle = textColor
+
+    lines.forEach((line, li) => {
+      const chars  = [...line]
+      const lineW  = this._measureLine(ctx, line, trkPx)
+      let   curX   = (cw - lineW) / 2
+      const baseY  = blockY + li * lineH + fSize * 0.78
+      const widths = chars.map(c => ctx.measureText(c).width)
+      chars.forEach((char, ci) => {
+        ctx.fillText(char, curX, baseY)
+        curX += widths[ci] + trkPx
+      })
+    })
   }
 
   setKaleidoscopeParams({ speed, zoom, radius, innerR }) {
