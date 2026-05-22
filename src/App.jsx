@@ -376,9 +376,9 @@ export default function App() {
           <h3>Typography</h3>
           <div className="seg-toggle">
             <button className={`seg-btn${fontStack === 'serif' ? ' active' : ''}`}
-              onClick={() => setFontStack('serif')}>Serif</button>
+              onClick={() => setFontStack('serif')}>Serrif</button>
             <button className={`seg-btn${fontStack === 'sans'  ? ' active' : ''}`}
-              onClick={() => setFontStack('sans')}>Sans</button>
+              onClick={() => setFontStack('sans')}>Saans</button>
           </div>
           <div className="seg-toggle">
             <button className={`seg-btn${textAlign === 'left'   ? ' active' : ''}`} onClick={() => setTextAlign('left')}>Left</button>
