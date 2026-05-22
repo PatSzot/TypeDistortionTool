@@ -7,7 +7,7 @@ const SERIF = "'Serrif VF', Georgia, serif"
 const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_PHRASE   = 'Reading the field is where every Content Engineer starts. This certification proves you can. You diagnose where your brand shows up in answer engine optimization (AEO), find what\'s missing, and build the case that gets budget, headcount, and executive attention.'
-const DEFAULT_WAVE     = { height: 26, speed: 0.14, frequency: 1.9, warpAmount: 10 }
+const DEFAULT_WAVE     = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
 const EFFECT_LABELS = { wave: 'Systems Builder', polygon: 'Polygon', trend: 'AEO Analyst' }
 const EFFECT_BG     = { wave: '#0092FF', polygon: '#000000', trend: '#008C44' }
@@ -52,8 +52,8 @@ export default function App() {
 
   const [phrase,    setPhrase]    = useState(DEFAULT_PHRASE)
   const [fontStack, setFontStack] = useState('serif')
-  const [fontSize,  setFontSize]  = useState(30)
-  const [leading,   setLeading]   = useState(100)   // stored as %, divided by 100 for renderer
+  const [fontSize,  setFontSize]  = useState(37)
+  const [leading,   setLeading]   = useState(111)   // stored as %, divided by 100 for renderer
   const [tracking,  setTracking]  = useState(-1.12)
   const [textWidth, setTextWidth] = useState(100)
   const [textColor, setTextColor] = useState('#ffffff')
@@ -70,7 +70,7 @@ export default function App() {
   const [certMode,  setCertMode]  = useState(true)
   const [certTitle, setCertTitle] = useState('AEO Analyst')
   const [certName,  setCertName]  = useState('Ariana Opera')
-  const [certZoom,  setCertZoom]  = useState(1)
+  const [certZoom,  setCertZoom]  = useState(2.60)
   const [certScale, setCertScale] = useState(1)
   const canvasWrapRef = useRef(null)
 
