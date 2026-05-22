@@ -65,10 +65,10 @@ const FRAGMENT_SHADER = /* glsl */`
       float phase = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
       float dispX = sin(phase);
       float dispY = cos(phase);
-      vec2 distortedUV = vUv + vec2(
+      vec2 distortedUV = clamp(vUv + vec2(
         dispX * uWarpAmount * 0.002,   // horizontal warp
         dispY * uWarpAmount * 0.0002   // subtle vertical
-      );
+      ), 0.0, 1.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
     }
@@ -81,10 +81,10 @@ const FRAGMENT_SHADER = /* glsl */`
       float phaseX  = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0 * 0.71;
       float waveY   = abs(mod(phaseY / PI, 2.0) - 1.0) * 2.0 - 1.0;
       float waveX   = abs(mod(phaseX / PI, 2.0) - 1.0) * 2.0 - 1.0;
-      vec2 distortedUV = vUv + vec2(
+      vec2 distortedUV = clamp(vUv + vec2(
         waveX * uWarpAmount * 0.002,
         waveY * uWarpAmount * 0.002
-      );
+      ), 0.0, 1.0);
       gl_FragColor = texture2D(uTexture, distortedUV);
       return;
     }
@@ -131,9 +131,11 @@ export class ThreeRenderer {
     this.textCanvas        = document.createElement('canvas')
     this.textCanvas.width  = TEXT_W
     this.textCanvas.height = TEXT_H
-    this.texture           = new THREE.CanvasTexture(this.textCanvas)
-    this.texture.minFilter = THREE.LinearFilter
-    this.texture.magFilter = THREE.LinearFilter
+    this.texture                  = new THREE.CanvasTexture(this.textCanvas)
+    this.texture.minFilter        = THREE.LinearFilter
+    this.texture.magFilter        = THREE.LinearFilter
+    this.texture.generateMipmaps  = false
+    this.texture.anisotropy       = this.renderer.capabilities.getMaxAnisotropy()
 
     // Plane mesh with wave shader — initial 2:1 aspect, resized dynamically
     const geo = new THREE.PlaneGeometry(PLANE_W, PLANE_W * TEXT_H / TEXT_W, SEGS_X, SEGS_Y)
@@ -244,7 +246,14 @@ export class ThreeRenderer {
     this._fitCanvas(totalH + pad * 2)
 
     const ch = canvas.height
+    // Fill with the effect background colour so bilinear filtering at text
+    // edges blends text → bg rather than text → transparent-black, which
+    // would produce a dark fringe around every glyph when warped.
     ctx.clearRect(0, 0, cw, ch)
+    if (this._bgColor) {
+      ctx.fillStyle = this._bgColor
+      ctx.fillRect(0, 0, cw, ch)
+    }
 
     // Always re-apply after clear — ensures font/color are current regardless
     // of whether _fitCanvas resized (which resets context state) or not.
@@ -311,6 +320,7 @@ export class ThreeRenderer {
   }
 
   setBgColor(hex) {
+    this._bgColor = hex
     this.renderer.setClearColor(new THREE.Color(hex), 1)
   }
 
