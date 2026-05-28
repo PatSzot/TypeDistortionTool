@@ -57,10 +57,6 @@ const FRAGMENT_SHADER = /* glsl */`
   void main() {
     if (uMode < 0.5) {
       // ── Warp ─────────────────────────────────────────────────────────────
-      // UV distortion driven by the same phase as the vertex wave so warp and
-      // wave are always in sync. Displacement depends only on X (not Y), so
-      // all lines at the same horizontal position shift together rather than
-      // each row warping independently.
       float tiltedX = vUv.x + vUv.y * 0.1763;  // tan(10°) — matches vertex tilt
       float phase = tiltedX * uFrequency * PI * 2.0 - uTime * uSpeed * PI * 2.0;
       float dispX = sin(phase);
@@ -89,6 +85,49 @@ const FRAGMENT_SHADER = /* glsl */`
       return;
     }
 
+  }
+`
+
+// ── Rings shaders (p5.js Text Distortion port) ──────────────────────────────
+// Concentric rings of squares with oscillating angular distortion.
+// Dot size driven by a procedural 3-lobe pattern (approximates flower.png).
+// Color lerps yellow → magenta based on horizontal position.
+
+const RINGS_VERTEX_SHADER = /* glsl */`
+  attribute float aAngle;
+  attribute float aRadius;
+  attribute float aSizeNorm;
+
+  uniform float uTime;
+  uniform float uSpeed;
+  uniform float uAmpFactor;
+  uniform float uFreqFactor;
+
+  varying float vAmt;
+
+  const float MAX_R = 3.5;
+
+  void main() {
+    // Oscillation distortion — matches p5.js: angle + ampFactor*sin(freqFactor*r + frameCount*0.05)
+    float distortedAngle = aAngle + uAmpFactor * sin(uFreqFactor * aRadius + uTime * uSpeed);
+    float x = -aRadius * cos(distortedAngle);
+    float y =  aRadius * sin(distortedAngle);
+
+    // Colour mix amount: 0 = left (yellow), 1 = right (magenta)
+    vAmt = clamp(x / (MAX_R * 2.0) + 0.5, 0.0, 1.0);
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(x, y, 0.0, 1.0);
+    gl_PointSize = max(aSizeNorm * 4.0, 0.5);
+  }
+`
+
+const RINGS_FRAGMENT_SHADER = /* glsl */`
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+  varying float vAmt;
+
+  void main() {
+    gl_FragColor = vec4(mix(uColorA, uColorB, vAmt), 1.0);
   }
 `
 
@@ -164,10 +203,76 @@ export class ThreeRenderer {
     this.mesh.rotation.x = -0.22
     this.scene.add(this.mesh)
 
+    // Rings effect — hidden until 'rings' mode is active
+    this.ringsPoints = this._buildRings()
+    this.ringsPoints.frustumCulled = false
+    this.ringsPoints.visible = false
+    this.scene.add(this.ringsPoints)
+
     // Pointer-driven 3D rotation state
     this._baseRotX   = -0.22
     this._ptr        = { x: 0, y: 0 }   // current lerped pointer (-1…1)
     this._rotStrength = 10               // degrees
+  }
+
+  // ── Rings geometry builder ─────────────────────────────────────────────
+  // Ports the p5.js TextDistortion sketch to Three.js Points geometry.
+  // 50 rings × 100 pts each. Size driven by a procedural 3-lobe pattern
+  // that approximates sampling a flower image's red channel.
+
+  _buildRings() {
+    const NUM_RINGS    = 50
+    const PTS_PER_RING = 100
+    const MIN_R        = 0.05
+    const MAX_R        = 3.5
+    const REPEAT_X     = 2
+    const REPEAT_Y     = 3
+    const TWO_PI       = Math.PI * 2
+    const total        = NUM_RINGS * PTS_PER_RING
+
+    const positions = new Float32Array(total * 3)  // placeholder zeros; actual pos in vertex shader
+    const angles    = new Float32Array(total)
+    const radii     = new Float32Array(total)
+    const sizeNorms = new Float32Array(total)
+
+    let idx = 0
+    for (let i = 0; i < NUM_RINGS; i++) {
+      const r = MIN_R + ((MAX_R - MIN_R) / NUM_RINGS) * i
+      for (let j = 0; j < PTS_PER_RING; j++) {
+        const angle   = (TWO_PI / PTS_PER_RING) * j
+        const sampleX = (angle * REPEAT_X) % TWO_PI
+        const sampleY = (((r - MIN_R) / (MAX_R - MIN_R)) * REPEAT_Y) % 1.0
+        // 3-lobe procedural pattern (approximates p5.js flower.png red channel)
+        const flowerVal = Math.max(0, (Math.sin(sampleX * 3) * Math.cos(sampleY * TWO_PI) + 1) * 0.5)
+        angles[idx]    = angle
+        radii[idx]     = r
+        sizeNorms[idx] = flowerVal
+        idx++
+      }
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position',  new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('aAngle',    new THREE.BufferAttribute(angles, 1))
+    geo.setAttribute('aRadius',   new THREE.BufferAttribute(radii, 1))
+    geo.setAttribute('aSizeNorm', new THREE.BufferAttribute(sizeNorms, 1))
+
+    this.ringsUniforms = {
+      uTime:       { value: 0 },
+      uSpeed:      { value: 3.0 },    // radians/sec — p5 frameCount*0.05 at 60fps = 3 rad/s
+      uAmpFactor:  { value: 0.2 },    // angular distortion amplitude (radians)
+      uFreqFactor: { value: 2.5 },    // spatial frequency — scaled from p5's 0.03 × (300/3.5)
+      uColorA:     { value: new THREE.Color(1, 1, 0) },      // yellow  #ffff00
+      uColorB:     { value: new THREE.Color(1, 0, 0.784) },  // magenta #ff00c8
+    }
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms:       this.ringsUniforms,
+      vertexShader:   RINGS_VERTEX_SHADER,
+      fragmentShader: RINGS_FRAGMENT_SHADER,
+    })
+
+    return new THREE.Points(geo, mat)
   }
 
   // ── Target canvas height based on current camera zoom ─────────────────
@@ -313,9 +418,12 @@ export class ThreeRenderer {
   // ── Effect switching ───────────────────────────────────────────────────
 
   setEffect(name) {
-    this._currentEffect = name
+    this._currentEffect  = name
+    const isRings        = name === 'rings'
+    this.mesh.visible        = !isRings
+    this.ringsPoints.visible =  isRings
     this.uniforms.uMode.value = name === 'polygon' ? 2.0 : 0.0
-    this._baseRotX = -0.22
+    this._baseRotX = isRings ? 0 : -0.22
     this.mesh.rotation.x = this._baseRotX
   }
 
@@ -344,6 +452,14 @@ export class ThreeRenderer {
     this.uniforms.uWarpAmount.value = warpAmount
   }
 
+  // ── Rings params ───────────────────────────────────────────────────────
+
+  setRingsParams({ ampFactor, freqFactor, speed }) {
+    this.ringsUniforms.uAmpFactor.value  = ampFactor
+    this.ringsUniforms.uFreqFactor.value = freqFactor
+    this.ringsUniforms.uSpeed.value      = speed
+  }
+
   // ── Loop / resize / export ─────────────────────────────────────────────
 
   tick(t, ptrX = 0, ptrY = 0) {
@@ -354,10 +470,13 @@ export class ThreeRenderer {
 
     // Apply pointer-driven tilt on top of the base rotation for this effect
     const maxRad = this._rotStrength * Math.PI / 180
-    this.mesh.rotation.y  =  this._ptr.x * maxRad
-    this.mesh.rotation.x  =  this._baseRotX - this._ptr.y * maxRad * 0.6
+    this.mesh.rotation.y        =  this._ptr.x * maxRad
+    this.mesh.rotation.x        =  this._baseRotX - this._ptr.y * maxRad * 0.6
+    this.ringsPoints.rotation.y =  this._ptr.x * maxRad
+    this.ringsPoints.rotation.x =  this._ptr.y * maxRad * 0.6
 
-    this.uniforms.uTime.value = t
+    this.uniforms.uTime.value      = t
+    this.ringsUniforms.uTime.value = t
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -372,6 +491,8 @@ export class ThreeRenderer {
   dispose() {
     this.mesh.geometry.dispose()
     this.mesh.material.dispose()
+    this.ringsPoints.geometry.dispose()
+    this.ringsPoints.material.dispose()
     this.texture.dispose()
     this.renderer.dispose()
     if (this.mount.contains(this.renderer.domElement)) {
