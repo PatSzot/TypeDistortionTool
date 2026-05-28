@@ -78,7 +78,7 @@ export default function App() {
   const [fontsReady, setFontsReady] = useState(false)
   const [controlsOpen, setControlsOpen] = useState(true)
 
-  const [certMode,  setCertMode]  = useState(true)
+  const [certMode,  setCertMode]  = useState(false)
   const [certTitle, setCertTitle] = useState(EFFECT_DEFAULTS.wave.certTitle)
   const [certName,  setCertName]  = useState('Ariana Opera')
   const [certZoom,  setCertZoom]  = useState(2.60)
