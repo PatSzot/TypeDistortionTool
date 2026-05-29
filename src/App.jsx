@@ -8,8 +8,8 @@ const SANS  = "'Saans', Inter, sans-serif"
 
 const DEFAULT_WAVE = { height: 4, speed: 0.14, frequency: 1.9, warpAmount: 10 }
 
-const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'AEO Analyst', rings: 'Growth Leader' }
-const EFFECT_BG        = { wave: '#0092FF', polygon: '#008C44', rings: '#000000' }
+const EFFECT_LABELS    = { wave: 'Systems Builder', polygon: 'AEO Analyst', rings: 'Growth Leader', lens: 'Brand Architect' }
+const EFFECT_BG        = { wave: '#0092FF', polygon: '#008C44', rings: '#000000', lens: '#000820' }
 const EFFECT_DEFAULTS  = {
   wave: {
     phrase:    'Reading the field is one half of Content Engineering. Building on it is the other. This certification proves you can find the right problem, design a system that solves it, and explain why it matters to the business.',
@@ -22,6 +22,10 @@ const EFFECT_DEFAULTS  = {
   rings: {
     phrase:    'Growth is not a channel. It is a compounding system of the right message, the right moment, and the right motion. This certification proves you can build it.',
     certTitle: 'Growth Leader',
+  },
+  lens: {
+    phrase:    'Understanding your audience is not a skill—it is a system. This certification proves you can identify who you are building for, what they need to hear, and how to reach them at scale.',
+    certTitle: 'Brand Architect',
   },
 }
 
@@ -86,6 +90,7 @@ export default function App() {
   const [certTitle, setCertTitle] = useState(EFFECT_DEFAULTS.wave.certTitle)
   const [certName,  setCertName]  = useState('Ariana Opera')
   const [rings,     setRings]     = useState({ ampFactor: 0.2, freqFactor: 2.5, speed: 3.0 })
+  const [lens,      setLens]      = useState({ speed: 0.3, distortion: 35, dome: 40 })
   const [certZoom,  setCertZoom]  = useState(2.60)
   const [certScale, setCertScale] = useState(1)
   const canvasWrapRef  = useRef(null)
@@ -94,7 +99,7 @@ export default function App() {
 
   // Always-current settings snapshot — read in renderer init to avoid stale closures
   const settingsRef = useRef({})
-  settingsRef.current = { effect, wave, rings, rotationStrength, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000', certZoom }
+  settingsRef.current = { effect, wave, rings, lens, rotationStrength, phrase, fontFamily: fontStack === 'serif' ? SERIF : SANS, fontSize, leading, tracking, textColor, textWidth, textAlign, bgColor: EFFECT_BG[effect] ?? '#000000', certZoom }
 
   const fontFamily = fontStack === 'serif' ? SERIF : SANS
 
@@ -117,6 +122,7 @@ export default function App() {
     rend.setZoom(s.certZoom)
     rend.setWaveParams(s.wave)
     rend.setRingsParams(s.rings)
+    rend.setLensParams(s.lens)
     rend.setRotationStrength(s.rotationStrength)
     rend.drawText({
       phrase: s.phrase, fontFamily: s.fontFamily, fontSize: s.fontSize,
@@ -187,6 +193,11 @@ export default function App() {
   useEffect(() => {
     rendRef.current?.setRingsParams(rings)
   }, [rings])
+
+  // ── Lens params ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    rendRef.current?.setLensParams(lens)
+  }, [lens])
 
   // ── Animation loop ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -284,11 +295,17 @@ export default function App() {
   // Shortest T ≥ 3s where the animation returns to its exact start state.
   // Wave/Polygon: period = 1/speed  →  T = ceil(3·speed)/speed
   // Rings: period = 2π/speed  →  T = ceil(3/period) × period
+  // Lens: outer-ring period = 2π / (speed * 0.4 / 0.48); cap at 10s
   const seamlessLoopDuration = (() => {
     if (effect === 'rings') {
       const period = (2 * Math.PI) / Math.max(0.01, rings.speed)
       const k = Math.max(1, Math.round(3 / period))
       return k * period
+    }
+    if (effect === 'lens') {
+      const innerPeriod = (2 * Math.PI * 0.04) / Math.max(0.01, lens.speed * 0.4)
+      const k = Math.max(1, Math.round(3 / innerPeriod))
+      return Math.min(k * innerPeriod, 10)
     }
     const TARGET = 3
     const s = wave.speed
@@ -360,6 +377,7 @@ export default function App() {
                 <button className={`seg-btn${effect === 'wave'    ? ' active' : ''}`} onClick={() => switchEffect('wave')}>{EFFECT_LABELS.wave}</button>
                 <button className={`seg-btn${effect === 'polygon' ? ' active' : ''}`} onClick={() => switchEffect('polygon')}>{EFFECT_LABELS.polygon}</button>
                 <button className={`seg-btn${effect === 'rings'   ? ' active' : ''}`} onClick={() => switchEffect('rings')}>{EFFECT_LABELS.rings}</button>
+                <button className={`seg-btn${effect === 'lens'    ? ' active' : ''}`} onClick={() => switchEffect('lens')}>{EFFECT_LABELS.lens}</button>
               </div>
             </div>
 
@@ -440,6 +458,10 @@ export default function App() {
                 <ParamSlider label="Speed"      value={rings.speed}      min={0.1} max={10}  step={0.1}  onChange={v => setRings(r => ({ ...r, speed:      v }))} />
                 <ParamSlider label="Distortion" value={rings.ampFactor}  min={0}   max={1}   step={0.01} onChange={v => setRings(r => ({ ...r, ampFactor:  v }))} />
                 <ParamSlider label="Frequency"  value={rings.freqFactor} min={0}   max={10}  step={0.1}  onChange={v => setRings(r => ({ ...r, freqFactor: v }))} />
+              </> : effect === 'lens' ? <>
+                <ParamSlider label="Spin Speed"  value={lens.speed}      min={0}   max={2}   step={0.05} onChange={v => setLens(l => ({ ...l, speed:       v }))} />
+                <ParamSlider label="Distortion"  value={lens.distortion} min={0}   max={100} step={1}    onChange={v => setLens(l => ({ ...l, distortion:  v }))} />
+                <ParamSlider label="Dome"        value={lens.dome}       min={0}   max={100} step={1} unit="%" onChange={v => setLens(l => ({ ...l, dome: v }))} />
               </> : <>
                 <ParamSlider label="Height"    value={wave.height}     min={0}   max={100} step={1}    unit="%" onChange={v => setWaveParam('height', v)}     />
                 <ParamSlider label="Speed"     value={wave.speed}      min={0}   max={1}   step={0.01} unit="%" onChange={v => setWaveParam('speed', v)}      />
